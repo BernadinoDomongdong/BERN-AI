@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BernardAi</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            background-color: #1e1e1e;
+            font-family: 'Roboto', sans-serif;
+            color: #fff;
+        }
+        .navbar {
+            margin-bottom: 50px;
+            background-color: #2c2c2c;
+        }
+        .navbar-brand {
+            color: #fff;
+        }
+        .container {
+            background: #2c2c2c;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            color: #fff;
+        }
+        h2 {
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        .form-control {
+            border-radius: 20px;
+            background-color: #3c3c3c;
+            color: #fff;
+            border: none;
+        }
+        .form-control::placeholder {
+            color: #bbb;
+        }
+        .btn-custom {
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .btn-custom:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        .btn-stop {
+            background-color: #dc3545;
+            color: #fff;
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .btn-stop:hover {
+            background-color: #c82333;
+            transform: scale(1.05);
+        }
+        #response {
+            margin-top: 20px;
+            padding: 20px;
+            background: #3c3c3c;
+            border-radius: 8px;
+            min-height: 50px;
+            color: #fff;
+        }
+        #response h3 {
+            color: #fff;
+            font-size: 1.2em;
+        }
+        #response strong {
+            color: #ffcc00;
+        }
+        #response ul {
+            padding-left: 20px;
+        }
+        #response li {
+            margin-bottom: 5px;
+        }
+        #response pre {
+            color: #fff; /* Ensure code blocks are also white */
+        }
+        .footer {
+            margin-top: 50px;
+            padding: 20px;
+            background: #2c2c2c;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .spinner-border {
+            display: none;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <a class="navbar-brand" href="#">BernardAi</a>
+    </nav>
+    <div class="container">
+        <h2>Ask BernardAi</h2>
+        <div class="form-group">
+            <input type="text" class="form-control" id="userInput" placeholder="Enter your question" />
+        </div>
+        <button class="btn btn-custom" onclick="sendMessage()"><i class="fas fa-paper-plane"></i> Ask!</button>
+        <button class="btn btn-stop" onclick="stopRequest()"><i class="fas fa-stop"></i> Stop</button>
+        <div class="spinner-border text-success" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+        <div id="response"></div>
+    </div>
+    <div class="footer">
+        &copy; 2025 BernardAi. All rights reserved.
+    </div>
+    <script>
+        let controller;
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput').value;
+            const responseDiv = document.getElementById('response');
+            const spinner = document.querySelector('.spinner-border');
+            if (!input) {
+                responseDiv.innerHTML = 'Please enter a message.';
+                return;
+            }
+            responseDiv.innerHTML = '';
+            spinner.style.display = 'inline-block';
+
+            controller = new AbortController();
+            const signal = controller.signal;
+
+            try {
+                const response = await fetch(
+                    'https://openrouter.ai/api/v1/chat/completions',
+                    {
+                        method: 'POST',
+                        headers: {
+                            Authorization: 'Bearer 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',
+                            'HTTP-Referer': 'https://www.BernardAi.com',
+                            'X-Title': 'BernardAi',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            model: 'deepseek/deepseek-r1:free',
+                            messages: [{ role: 'user', content: input }],
+                        }),
+                        signal: signal,
+                    },
+                );
+                const data = await response.json();
+                const markdownText = data.choices?.[0]?.message?.content || 'No response received.';
+                responseDiv.innerHTML = marked.parse(markdownText);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    responseDiv.innerHTML = 'Request was aborted.';
+                } else {
+                    responseDiv.innerHTML = 'Error: ' + error.message;
+                }
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        function stopRequest() {
+            if (controller) {
+                controller.abort();
+            }
+        }
+    </script>
+</body>
+</html>
