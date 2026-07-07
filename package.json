@@ -1,0 +1,9 @@
+{
+  "name": "bernardai-secure",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BernardAi chat UI with API key kept server-side via a Vercel serverless function",
+  "engines": {
+    "node": ">=18"
+  }
+}
