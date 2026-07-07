@@ -2,6 +2,8 @@
 // The API key lives only in Vercel's Environment Variables (see README),
 // so it's never present in any file that gets committed to GitHub.
 
+const { fetchFreeModels } = require('../lib/freeModels');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -23,14 +25,24 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const allowedModels = new Set([
-    'deepseek/deepseek-r1:free',
-    'qwen/qwen3-coder:free',
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'anthropic/claude-haiku-4.5',
-    'anthropic/claude-sonnet-5',
-  ]);
-  const chosenModel = allowedModels.has(model) ? model : 'deepseek/deepseek-r1:free';
+  // Never trust the model string from the browser as-is. Re-check it
+  // against OpenRouter's live list of free models so a request can never
+  // accidentally (or deliberately) hit a paid model and rack up charges.
+  let freeModels;
+  try {
+    freeModels = await fetchFreeModels();
+  } catch (err) {
+    res.status(502).json({ error: 'Could not verify free model list: ' + err.message });
+    return;
+  }
+
+  const freeModelIds = new Set(freeModels.map((m) => m.id));
+  if (freeModelIds.size === 0) {
+    res.status(503).json({ error: 'No free models are currently available on OpenRouter. Try again later.' });
+    return;
+  }
+
+  const chosenModel = freeModelIds.has(model) ? model : freeModels[0].id;
 
   try {
     const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {

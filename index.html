@@ -41,6 +41,9 @@
         .form-control::placeholder {
             color: #bbb;
         }
+        .form-control:disabled {
+            opacity: 0.6;
+        }
         select.form-control {
             border-radius: 20px;
             -webkit-appearance: none;
@@ -56,6 +59,11 @@
             margin-bottom: 5px;
             display: block;
         }
+        .model-row .model-meta {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 5px;
+        }
         .btn-custom {
             background-color: #007bff;
             color: #fff;
@@ -67,6 +75,11 @@
         .btn-custom:hover {
             background-color: #0056b3;
             transform: scale(1.05);
+        }
+        .btn-custom:disabled {
+            background-color: #555;
+            transform: none;
+            cursor: not-allowed;
         }
         .btn-stop {
             background-color: #dc3545;
@@ -132,31 +145,24 @@
         <h2>Ask BernardAi</h2>
 
         <div class="model-row">
-            <label for="modelSelect">Model</label>
-            <select class="form-control" id="modelSelect">
-                <optgroup label="Free">
-                    <option value="deepseek/deepseek-r1:free">DeepSeek R1 (free)</option>
-                    <option value="qwen/qwen3-coder:free">Qwen3 Coder (free)</option>
-                    <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (free)</option>
-                </optgroup>
-                <optgroup label="Claude (paid, per-token)">
-                    <option value="anthropic/claude-haiku-4.5">Claude Haiku 4.5</option>
-                    <option value="anthropic/claude-sonnet-5">Claude Sonnet 5</option>
-                </optgroup>
+            <label for="modelSelect">Model (free only, loaded live from OpenRouter)</label>
+            <select class="form-control" id="modelSelect" disabled>
+                <option value="">Loading available free models...</option>
             </select>
+            <div class="model-meta" id="modelMeta"></div>
         </div>
 
         <div class="form-group">
             <input type="text" class="form-control" id="userInput" placeholder="Enter your question" />
         </div>
-        <button class="btn btn-custom" onclick="sendMessage()"><i class="fas fa-paper-plane"></i> Ask!</button>
+        <button class="btn btn-custom" id="askBtn" onclick="sendMessage()" disabled><i class="fas fa-paper-plane"></i> Ask!</button>
         <button class="btn btn-stop" onclick="stopRequest()"><i class="fas fa-stop"></i> Stop</button>
         <div class="spinner-border text-success" role="status">
             <span class="sr-only">Loading...</span>
         </div>
         <div id="response"></div>
         <div id="errorNote">
-            Note: free models are rate-limited. Claude models are billed per token on the server's OpenRouter account.
+            Note: free models are shared and rate-limited by OpenRouter, so they can be slower or briefly unavailable.
         </div>
     </div>
     <div class="footer">
@@ -166,7 +172,49 @@
         let controller;
 
         // No API key here. The browser only ever talks to our own
-        // serverless function at /api/chat, which holds the real key.
+        // serverless functions (/api/models and /api/chat), which hold
+        // the real key and only ever forward requests to models that are
+        // free at the moment the request is made.
+        async function loadModels() {
+            const select = document.getElementById('modelSelect');
+            const meta = document.getElementById('modelMeta');
+            const askBtn = document.getElementById('askBtn');
+            const errorNote = document.getElementById('errorNote');
+
+            try {
+                const res = await fetch('/api/models');
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || ('HTTP ' + res.status));
+                }
+
+                const models = data.models || [];
+                select.innerHTML = '';
+
+                if (models.length === 0) {
+                    select.innerHTML = '<option value="">No free models available right now</option>';
+                    meta.textContent = 'OpenRouter has no $0 models listed at the moment. Try refreshing later.';
+                    return;
+                }
+
+                models.forEach((m) => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.name;
+                    select.appendChild(opt);
+                });
+
+                select.disabled = false;
+                askBtn.disabled = false;
+                meta.textContent = models.length + ' free model(s) available right now.';
+            } catch (error) {
+                select.innerHTML = '<option value="">Could not load model list</option>';
+                errorNote.textContent = 'Could not load the free model list: ' + error.message;
+                errorNote.style.display = 'block';
+            }
+        }
+
         async function sendMessage() {
             const input = document.getElementById('userInput').value;
             const model = document.getElementById('modelSelect').value;
@@ -175,6 +223,10 @@
             const spinner = document.querySelector('.spinner-border');
             if (!input) {
                 responseDiv.innerHTML = 'Please enter a message.';
+                return;
+            }
+            if (!model) {
+                responseDiv.innerHTML = 'No model selected yet — wait for the list to finish loading.';
                 return;
             }
             responseDiv.innerHTML = '';
@@ -202,15 +254,13 @@
 
                 const markdownText = data.choices?.[0]?.message?.content || 'No response received.';
                 responseDiv.innerHTML = marked.parse(markdownText);
-
-                if (model.includes(':free')) {
-                    errorNote.style.display = 'block';
-                }
+                errorNote.style.display = 'block';
             } catch (error) {
                 if (error.name === 'AbortError') {
                     responseDiv.innerHTML = 'Request was aborted.';
                 } else {
                     responseDiv.innerHTML = 'Error: ' + error.message;
+                    errorNote.textContent = 'Note: free models are shared and rate-limited by OpenRouter, so they can be slower or briefly unavailable.';
                     errorNote.style.display = 'block';
                 }
             } finally {
@@ -223,6 +273,8 @@
                 controller.abort();
             }
         }
+
+        loadModels();
     </script>
 </body>
 </html>
