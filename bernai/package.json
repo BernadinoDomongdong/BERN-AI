@@ -1,9 +1,0 @@
-{
-  "name": "bern-ai",
-  "version": "2.0.0",
-  "private": true,
-  "description": "BERN-AI chat UI. API key stays server-side in a Vercel serverless function, only currently-free OpenRouter models are ever used, and the reply language is chosen per-request (English by default).",
-  "engines": {
-    "node": ">=18"
-  }
-}
