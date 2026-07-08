@@ -1,27 +1,62 @@
-# BernardAi (secure, free-models-only version, Bisaya edition)
-
-**New look.** `index.html` now has a custom jeepney-signboard visual
-identity — a yellow destination-board header, chrome/asphalt dark theme,
-a "capacity" readout per model (mapped from context length, like seats on
-a ride), a mini jeepney driving along a dashed route while a reply is in
-transit, and a torn-ticket style card for the answer. It's plain
-HTML/CSS/JS (no framework), so you can restyle any of it by editing the
-CSS variables at the top of the `<style>` block in `index.html`.
-
-**Bisaya nga tubag, otomatik.** `api/chat.js` sends a Bisaya/Cebuano
-system prompt with every request, so BernardAi always answers in Bisaya —
-no matter what language the question is asked in (English, Tagalog,
-etc.), and no extra toggle needed on the frontend. The UI text (labels,
-buttons, status/error messages) has also been translated to Bisaya. If
-you ever want to switch the reply language back to English, just edit or
-remove `SYSTEM_PROMPT` in `api/chat.js`.
+# BERN-AI (secure, free-models-only, multilingual edition)
 
 This version never puts your OpenRouter API key in any file — it lives only
 in Vercel's Environment Variables, server-side, in the `/api/chat`
 serverless function. The browser calls `/api/chat`; it never sees the key.
 
-**What changed:** the model dropdown used to be a hardcoded list, which
-meant it could go stale or accidentally include a paid model. Now:
+## What's in this build
+
+- **Answer language, your choice.** A "Pinulongan sa Tubag" dropdown lets
+  you pick the language BERN-AI answers in — English is the default, with
+  Binisaya/Cebuano, Filipino, Spanish, Japanese, Korean, Chinese, French,
+  German, Arabic, or a free-text "other" option. Only the AI's *answer*
+  changes language; the interface labels stay as-is. This is sent as a
+  `language` field to `/api/chat`, which builds the system prompt around
+  it server-side (see `api/chat.js`).
+- **Day / night mode.** A toggle button (top-right, always visible) flips
+  between a dark "night" theme and a light "day" theme. The choice is
+  remembered in the browser (`localStorage`) and applied before first
+  paint, so there's no flash of the wrong theme on reload.
+- **Jeepney-signboard visual identity.** A yellow destination-board
+  header, a "capacity" readout per model (mapped from context length,
+  like seats on a ride), a mini jeepney driving along a dashed route
+  while a reply is in transit, and a torn-ticket style card for the
+  answer.
+- **Ambient code-rain background.** A blurred, low-opacity layer of
+  drifting code snippets behind everything — purely decorative
+  (`aria-hidden`), GPU-cheap, and automatically disabled for people with
+  `prefers-reduced-motion` set.
+- **Responsive.** Single-column on phones, a two-column settings grid on
+  wider screens, safe-area padding for notched phones, and a minimum
+  44px tap target on the theme toggle.
+
+## Files
+
+Split into separate files on purpose — one job per file, easier to
+maintain and diff than one giant HTML page:
+
+- `index.html` — page structure only. Sets the theme attribute inline
+  (before CSS loads) to avoid a flash of the wrong theme, then loads
+  `styles.css` and `app.js`. Contains no secrets.
+- `styles.css` — all styling. Day/night themes are just two blocks of
+  CSS custom properties (`:root` / `[data-theme="day"]`); every
+  component reads `var(--color-*)`, so nothing else needs to change to
+  add a third theme later.
+- `app.js` — all interactive logic, organized as one `init*()` function
+  per feature (theme, code-rain, language selector, model loading,
+  chat) plus a single `init()` that wires them up on `DOMContentLoaded`.
+- `api/models.js` — serverless function that returns the current list of
+  free OpenRouter models.
+- `api/chat.js` — serverless function that reads `OPENROUTER_API_KEY` from
+  the environment, verifies the requested model is free, sanitizes and
+  applies the requested answer language, and forwards the chat request
+  to OpenRouter.
+- `lib/freeModels.js` — shared helper (used by both API functions) that
+  fetches and caches OpenRouter's free-model list.
+- `.env.example` — template only; your real key never goes in a file
+  that gets committed.
+
+## How the free-model safety net works
 
 - `/api/models` asks OpenRouter which models are free *right now*
   (price = $0 for both prompt and completion tokens) and returns that
@@ -76,16 +111,13 @@ cp .env.example .env
 vercel dev
 ```
 
-## Files
+## Notes
 
-- `index.html` — frontend UI. Loads the model list from `/api/models` on
-  page load, then calls `/api/chat` to ask a question. Contains no secrets.
-- `api/models.js` — serverless function that returns the current list of
-  free OpenRouter models.
-- `api/chat.js` — serverless function that reads `OPENROUTER_API_KEY` from
-  the environment, verifies the requested model is free, and forwards the
-  chat request to OpenRouter.
-- `lib/freeModels.js` — shared helper (used by both API functions) that
-  fetches and caches OpenRouter's free-model list.
-- `.env.example` — template only; your real key never goes in a file
-  that gets committed.
+- The signboard tagline ("Bisaya na AI, tanan pangutana tubagon sa nga
+  binisaya...") is kept as written, but since the actual default is now
+  English with a language switcher, you may want to revisit that line —
+  it's in the `.signboard__dest` element in `index.html`.
+- To add another answer language, just add an entry to `LANGUAGE_OPTIONS`
+  in `app.js` — no backend changes needed, since `api/chat.js` accepts
+  any language name and drops it straight into the system prompt
+  (sanitized for length and stray characters).

@@ -4,18 +4,52 @@
 
 const { fetchFreeModels } = require('../lib/freeModels');
 
-// Gipugos nga mubalik ang tubag sa Bisaya/Cebuano, bisan unsa pa ang
-// pinulongan gigamit sa user sa iyang pangutana. Gibutang ni sa "system"
-// role para dili na kini kabalaka sa frontend o sa user — otomatik na.
-const SYSTEM_PROMPT =
-  'Ikaw si BernardAI, usa ka AI assistant nga motubag lamang sa Cebuano. ' +
-  'Gamita ang tukmang gramatika ug natural nga sinultihan sa Cebuano. ' +
-  'Ayaw pagsagol ug Hiligaynon, Waray, o ubang pinulongang Bisaya. ' +
-  'Kon ang user mogamit ug English, Tagalog, o laing pinulongan, sabta ang ' +
-  'pangutana apan tubaga gihapon sa Cebuano, gawas lamang kon klaro nga ' +
-  'gihangyo sa user nga motubag sa laing pinulongan. Kon adunay technical ' +
-  'nga termino nga walay tukmang hubad sa Cebuano, gamita ang orihinal nga ' +
-  'termino ug ipasabut kini sa Cebuano.';
+const DEFAULT_LANGUAGE = 'English';
+const MAX_LANGUAGE_LENGTH = 40;
+
+/**
+ * The frontend lets the person pick which language the answer should be
+ * in (English by default). We never trust that string blindly, since
+ * it flows straight into a system prompt: strip newlines/control
+ * characters and cap the length so it can't be used to smuggle extra
+ * instructions in.
+ */
+function sanitizeLanguage(rawLanguage) {
+  if (typeof rawLanguage !== 'string') return DEFAULT_LANGUAGE;
+
+  const cleaned = rawLanguage
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\p{L}\p{N}\s().,/-]/gu, '')
+    .trim()
+    .slice(0, MAX_LANGUAGE_LENGTH);
+
+  return cleaned || DEFAULT_LANGUAGE;
+}
+
+/** Builds the system prompt that forces the reply into the chosen language. */
+function buildSystemPrompt(language) {
+  return (
+    'You are BERN-AI, a helpful AI assistant for Cebuano users. ' +
+    `Always answer in ${language}, regardless of what language the ` +
+    'question is written in, unless the user explicitly asks you to ' +
+    'switch languages in their message. Keep the tone natural and ' +
+    'conversational. If a technical term has no natural translation, ' +
+    `you may keep the original term but still explain it in ${language}.`
+  );
+}
+
+/** Re-checks the requested model against the live free-model list. */
+async function resolveFreeModel(requestedModelId) {
+  const freeModels = await fetchFreeModels();
+  const freeModelIds = new Set(freeModels.map((m) => m.id));
+
+  if (freeModelIds.size === 0) {
+    return { error: 'No free models are currently available on OpenRouter. Try again later.', status: 503 };
+  }
+
+  const chosenModel = freeModelIds.has(requestedModelId) ? requestedModelId : freeModels[0].id;
+  return { chosenModel };
+}
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -23,7 +57,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const { message, model } = req.body || {};
+  const { message, model, language } = req.body || {};
 
   if (!message || typeof message !== 'string') {
     res.status(400).json({ error: 'Missing "message" in request body' });
@@ -41,21 +75,20 @@ module.exports = async function handler(req, res) {
   // Never trust the model string from the browser as-is. Re-check it
   // against OpenRouter's live list of free models so a request can never
   // accidentally (or deliberately) hit a paid model and rack up charges.
-  let freeModels;
+  let resolved;
   try {
-    freeModels = await fetchFreeModels();
+    resolved = await resolveFreeModel(model);
   } catch (err) {
     res.status(502).json({ error: 'Could not verify free model list: ' + err.message });
     return;
   }
 
-  const freeModelIds = new Set(freeModels.map((m) => m.id));
-  if (freeModelIds.size === 0) {
-    res.status(503).json({ error: 'No free models are currently available on OpenRouter. Try again later.' });
+  if (resolved.error) {
+    res.status(resolved.status).json({ error: resolved.error });
     return;
   }
 
-  const chosenModel = freeModelIds.has(model) ? model : freeModels[0].id;
+  const systemPrompt = buildSystemPrompt(sanitizeLanguage(language));
 
   try {
     const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -63,13 +96,13 @@ module.exports = async function handler(req, res) {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://www.bernarddev.com',
-        'X-Title': 'BernardAi',
+        'X-Title': 'BERN-AI',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: chosenModel,
+        model: resolved.chosenModel,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: message },
         ],
       }),
