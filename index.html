@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ceb">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BernardAi</title>
+    <title>BernardAi - Pangutana sa Bisaya</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -142,31 +142,31 @@
         <a class="navbar-brand" href="#">BernardAi</a>
     </nav>
     <div class="container">
-        <h2>Ask BernardAi</h2>
+        <h2>Pangutana kang BernardAi</h2>
 
         <div class="model-row">
-            <label for="modelSelect">Model (free only, loaded live from OpenRouter)</label>
+            <label for="modelSelect">Modelo (libre ra, gikuha live gikan sa OpenRouter)</label>
             <select class="form-control" id="modelSelect" disabled>
-                <option value="">Loading available free models...</option>
+                <option value="">Gina-load ang mga libre nga modelo...</option>
             </select>
             <div class="model-meta" id="modelMeta"></div>
         </div>
 
         <div class="form-group">
-            <input type="text" class="form-control" id="userInput" placeholder="Enter your question" />
+            <input type="text" class="form-control" id="userInput" placeholder="Isulat ang imong pangutana" />
         </div>
-        <button class="btn btn-custom" id="askBtn" onclick="sendMessage()" disabled><i class="fas fa-paper-plane"></i> Ask!</button>
-        <button class="btn btn-stop" onclick="stopRequest()"><i class="fas fa-stop"></i> Stop</button>
+        <button class="btn btn-custom" id="askBtn" onclick="sendMessage()" disabled><i class="fas fa-paper-plane"></i> Pangutana!</button>
+        <button class="btn btn-stop" onclick="stopRequest()"><i class="fas fa-stop"></i> Hunong</button>
         <div class="spinner-border text-success" role="status">
-            <span class="sr-only">Loading...</span>
+            <span class="sr-only">Gina-load...</span>
         </div>
         <div id="response"></div>
         <div id="errorNote">
-            Note: free models are shared and rate-limited by OpenRouter, so they can be slower or briefly unavailable.
+            Pahibalo: ang libre nga mga modelo gipang-share ug gi-rate-limit sa OpenRouter, mao nga usahay mahinay o dili available sa makadiyot.
         </div>
     </div>
     <div class="footer">
-        &copy; 2026 BernardAi. All rights reserved.
+        &copy; 2026 BernardAi. Tanang katungod gigahin.
     </div>
     <script>
         let controller;
@@ -193,8 +193,8 @@
                 select.innerHTML = '';
 
                 if (models.length === 0) {
-                    select.innerHTML = '<option value="">No free models available right now</option>';
-                    meta.textContent = 'OpenRouter has no $0 models listed at the moment. Try refreshing later.';
+                    select.innerHTML = '<option value="">Walay libre nga modelo karon</option>';
+                    meta.textContent = 'Walay $0 nga modelo nga naka-lista sa OpenRouter karon. Sulayi og refresh sa ulahi.';
                     return;
                 }
 
@@ -207,10 +207,10 @@
 
                 select.disabled = false;
                 askBtn.disabled = false;
-                meta.textContent = models.length + ' free model(s) available right now.';
+                meta.textContent = models.length + ' ka libre nga modelo ang available karon.';
             } catch (error) {
-                select.innerHTML = '<option value="">Could not load model list</option>';
-                errorNote.textContent = 'Could not load the free model list: ' + error.message;
+                select.innerHTML = '<option value="">Wala nakarga ang listahan sa modelo</option>';
+                errorNote.textContent = 'Wala nakarga ang listahan sa libre nga mga modelo: ' + error.message;
                 errorNote.style.display = 'block';
             }
         }
@@ -222,11 +222,11 @@
             const errorNote = document.getElementById('errorNote');
             const spinner = document.querySelector('.spinner-border');
             if (!input) {
-                responseDiv.innerHTML = 'Please enter a message.';
+                responseDiv.innerHTML = 'Palihug pagsulat og pangutana.';
                 return;
             }
             if (!model) {
-                responseDiv.innerHTML = 'No model selected yet — wait for the list to finish loading.';
+                responseDiv.innerHTML = 'Wala pay napiling modelo — hulata una nga makumpleto ang pag-load sa listahan.';
                 return;
             }
             responseDiv.innerHTML = '';
@@ -252,15 +252,15 @@
                     throw new Error(data.error || ('HTTP ' + response.status));
                 }
 
-                const markdownText = data.choices?.[0]?.message?.content || 'No response received.';
+                const markdownText = data.choices?.[0]?.message?.content || 'Walay tubag nga nadawat.';
                 responseDiv.innerHTML = marked.parse(markdownText);
                 errorNote.style.display = 'block';
             } catch (error) {
                 if (error.name === 'AbortError') {
-                    responseDiv.innerHTML = 'Request was aborted.';
+                    responseDiv.innerHTML = 'Gikansela ang request.';
                 } else {
-                    responseDiv.innerHTML = 'Error: ' + error.message;
-                    errorNote.textContent = 'Note: free models are shared and rate-limited by OpenRouter, so they can be slower or briefly unavailable.';
+                    responseDiv.innerHTML = 'Sayop: ' + error.message;
+                    errorNote.textContent = 'Pahibalo: ang libre nga mga modelo gipang-share ug gi-rate-limit sa OpenRouter, mao nga usahay mahinay o dili available sa makadiyot.';
                     errorNote.style.display = 'block';
                 }
             } finally {

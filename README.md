@@ -1,4 +1,12 @@
-# BernardAi (secure, free-models-only version)
+# BernardAi (secure, free-models-only version, Bisaya edition)
+
+**Bisaya nga tubag, otomatik.** `api/chat.js` sends a Bisaya/Cebuano
+system prompt with every request, so BernardAi always answers in Bisaya —
+no matter what language the question is asked in (English, Tagalog,
+etc.), and no extra toggle needed on the frontend. The UI text (labels,
+buttons, status/error messages) has also been translated to Bisaya. If
+you ever want to switch the reply language back to English, just edit or
+remove `SYSTEM_PROMPT` in `api/chat.js`.
 
 This version never puts your OpenRouter API key in any file — it lives only
 in Vercel's Environment Variables, server-side, in the `/api/chat`

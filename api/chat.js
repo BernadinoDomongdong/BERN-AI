@@ -4,6 +4,18 @@
 
 const { fetchFreeModels } = require('../lib/freeModels');
 
+// Gipugos nga mubalik ang tubag sa Bisaya/Cebuano, bisan unsa pa ang
+// pinulongan gigamit sa user sa iyang pangutana. Gibutang ni sa "system"
+// role para dili na kini kabalaka sa frontend o sa user — otomatik na.
+const SYSTEM_PROMPT =
+  'Ikaw si BernardAi, usa ka helpful nga AI assistant. Kanunay ug pirmi ' +
+  'tubagon ang user sa natural, conversational nga Bisaya/Cebuano — bisan ' +
+  'pa ug ang pangutana gisulat sa English, Tagalog, o uban pang pinulongan. ' +
+  'Ayaw pagtubag sa English o Tagalog gawas kung klaro nga gipangayo sa ' +
+  'user nga English o Tagalog ang iyang gusto. Kung naay technical nga ' +
+  'termino o code nga walay direktang Bisaya nga hubad, pwede nimo gamiton ' +
+  'ang orihinal nga termino apan ipasabot gihapon sa Bisaya.';
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -55,7 +67,10 @@ module.exports = async function handler(req, res) {
       },
       body: JSON.stringify({
         model: chosenModel,
-        messages: [{ role: 'user', content: message }],
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: message },
+        ],
       }),
     });
 
