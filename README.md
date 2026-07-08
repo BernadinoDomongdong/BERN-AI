@@ -1,5 +1,13 @@
 # BernardAi (secure, free-models-only version, Bisaya edition)
 
+**New look.** `index.html` now has a custom jeepney-signboard visual
+identity — a yellow destination-board header, chrome/asphalt dark theme,
+a "capacity" readout per model (mapped from context length, like seats on
+a ride), a mini jeepney driving along a dashed route while a reply is in
+transit, and a torn-ticket style card for the answer. It's plain
+HTML/CSS/JS (no framework), so you can restyle any of it by editing the
+CSS variables at the top of the `<style>` block in `index.html`.
+
 **Bisaya nga tubag, otomatik.** `api/chat.js` sends a Bisaya/Cebuano
 system prompt with every request, so BernardAi always answers in Bisaya —
 no matter what language the question is asked in (English, Tagalog,

@@ -3,184 +3,566 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BernardAi - Pangutana sa Bisaya</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>BernardAi — Sakay, Mangutana sa Bisaya</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        :root {
+            --asphalt: #14171c;
+            --panel: #1d2129;
+            --chrome: #a9b3bf;
+            --signboard: #ffc22e;
+            --signboard-shadow: #b8860f;
+            --taillight: #ff4b3e;
+            --taillight-shadow: #a3291f;
+            --paper: #f1eee6;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            background-color: #1e1e1e;
-            font-family: 'Roboto', sans-serif;
-            color: #fff;
+            background: var(--asphalt);
+            color: var(--paper);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            position: relative;
         }
-        .navbar {
-            margin-bottom: 50px;
-            background-color: #2c2c2c;
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: repeating-linear-gradient(180deg, transparent 0 42px, rgba(255, 194, 46, 0.035) 42px 46px);
+            pointer-events: none;
+            z-index: 0;
         }
-        .navbar-brand {
-            color: #fff;
+
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 40px 20px 56px;
         }
-        .container {
-            background: #2c2c2c;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            color: #fff;
+
+        /* ---------- Signboard header ---------- */
+        .signboard {
+            text-align: center;
+            margin-bottom: 30px;
         }
-        h2 {
-            color: #fff;
-            margin-bottom: 20px;
+
+        .signboard__plate {
+            position: relative;
+            display: inline-block;
+            max-width: 480px;
+            background: var(--signboard);
+            color: var(--asphalt);
+            padding: 20px 42px;
+            clip-path: polygon(6% 0%, 94% 0%, 100% 100%, 0% 100%);
+            box-shadow: 0 10px 0 var(--signboard-shadow), 0 18px 28px rgba(0, 0, 0, 0.4);
         }
-        .form-control {
-            border-radius: 20px;
-            background-color: #3c3c3c;
-            color: #fff;
-            border: none;
-        }
-        .form-control::placeholder {
-            color: #bbb;
-        }
-        .form-control:disabled {
+
+        .signboard__route {
+            position: absolute;
+            top: 9px;
+            left: 16px;
+            font-family: 'Space Mono', monospace;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
             opacity: 0.6;
         }
-        select.form-control {
-            border-radius: 20px;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
+
+        .signboard__title {
+            font-family: 'Bungee', cursive;
+            font-weight: 400;
+            font-size: clamp(28px, 6vw, 42px);
+            margin: 3px 0 0;
+            line-height: 1;
         }
-        .model-row {
-            margin-bottom: 15px;
-        }
-        .model-row label {
-            font-size: 0.85em;
-            color: #bbb;
-            margin-bottom: 5px;
+
+        .signboard__dest {
             display: block;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600;
+            font-size: 13.5px;
+            line-height: 1.45;
+            letter-spacing: 0.01em;
+            margin-top: 10px;
+            opacity: 0.85;
         }
-        .model-row .model-meta {
-            font-size: 0.8em;
-            color: #888;
-            margin-top: 5px;
+
+        /* ---------- Panels ---------- */
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(169, 179, 191, 0.18);
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 18px;
         }
-        .btn-custom {
-            background-color: #007bff;
-            color: #fff;
-            border-radius: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            transition: background-color 0.3s ease, transform 0.3s ease;
+
+        .field__head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 9px;
+            flex-wrap: wrap;
         }
-        .btn-custom:hover {
-            background-color: #0056b3;
-            transform: scale(1.05);
+
+        .field__head label {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--paper);
         }
-        .btn-custom:disabled {
-            background-color: #555;
-            transform: none;
+
+        .field__hint {
+            font-size: 11.5px;
+            color: var(--chrome);
+            font-family: 'Space Mono', monospace;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+        }
+
+        /* ---------- Select ---------- */
+        .select-wrap {
+            position: relative;
+        }
+
+        select {
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
+            background: var(--asphalt);
+            color: var(--paper);
+            border: 1.5px solid rgba(169, 179, 191, 0.3);
+            border-radius: 10px;
+            padding: 12px 42px 12px 14px;
+            font-size: 15px;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        select:disabled {
+            opacity: 0.55;
             cursor: not-allowed;
         }
-        .btn-stop {
-            background-color: #dc3545;
-            color: #fff;
-            border-radius: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            transition: background-color 0.3s ease, transform 0.3s ease;
+
+        select:focus-visible {
+            outline: 3px dashed var(--signboard);
+            outline-offset: 2px;
         }
-        .btn-stop:hover {
-            background-color: #c82333;
-            transform: scale(1.05);
+
+        .select-wrap__chevron {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            width: 15px;
+            height: 15px;
+            color: var(--chrome);
         }
-        #response {
-            margin-top: 20px;
-            padding: 20px;
-            background: #3c3c3c;
+
+        .model-meta {
+            margin-top: 9px;
+            font-size: 12.5px;
+            color: var(--chrome);
+        }
+
+        .model-capacity {
+            margin-top: 4px;
+            font-size: 12px;
+            font-family: 'Space Mono', monospace;
+            color: var(--signboard);
+        }
+
+        /* ---------- Composer ---------- */
+        .composer {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input#userInput {
+            flex: 1 1 200px;
+            background: var(--asphalt);
+            border: 1.5px solid rgba(169, 179, 191, 0.3);
+            border-radius: 10px;
+            padding: 13px 16px;
+            color: var(--paper);
+            font-size: 15px;
+            font-family: inherit;
+        }
+
+        input#userInput::placeholder {
+            color: rgba(241, 238, 230, 0.4);
+        }
+
+        input#userInput:focus-visible {
+            outline: 3px dashed var(--signboard);
+            outline-offset: 2px;
+        }
+
+        input#userInput:disabled {
+            opacity: 0.6;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            border-radius: 10px;
+            padding: 13px 22px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 700;
+            font-size: 14.5px;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .btn:focus-visible {
+            outline: 3px dashed var(--paper);
+            outline-offset: 2px;
+        }
+
+        .btn--go {
+            background: var(--signboard);
+            color: var(--asphalt);
+            box-shadow: 0 4px 0 var(--signboard-shadow);
+        }
+
+        .btn--go:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 var(--signboard-shadow);
+        }
+
+        .btn--go:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 0 var(--signboard-shadow);
+        }
+
+        .btn--go:disabled {
+            background: rgba(169, 179, 191, 0.25);
+            color: rgba(241, 238, 230, 0.45);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn--stop {
+            background: var(--taillight);
+            color: var(--paper);
+            box-shadow: 0 4px 0 var(--taillight-shadow);
+        }
+
+        .btn--stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 var(--taillight-shadow);
+        }
+
+        .btn--stop:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 0 var(--taillight-shadow);
+        }
+
+        /* ---------- Transit (loading) ---------- */
+        .transit {
+            margin-top: 18px;
+        }
+
+        .transit__track {
+            position: relative;
+            height: 26px;
+            background: repeating-linear-gradient(90deg, rgba(169, 179, 191, 0.35) 0 14px, transparent 14px 26px);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .transit__jeep {
+            position: absolute;
+            top: 50%;
+            left: -34px;
+            width: 30px;
+            height: 20px;
+            transform: translateY(-50%);
+            color: var(--signboard);
+            animation: drive 2.1s linear infinite;
+        }
+
+        .transit__jeep rect,
+        .transit__jeep circle.wheel {
+            fill: currentColor;
+        }
+
+        .transit__jeep circle.hub {
+            fill: var(--panel);
+        }
+
+        @keyframes drive {
+            from { left: -34px; }
+            to { left: 100%; }
+        }
+
+        .transit__label {
+            margin: 9px 0 0;
+            font-size: 12.5px;
+            color: var(--chrome);
+            font-family: 'Space Mono', monospace;
+            text-align: center;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .transit__jeep {
+                animation: none;
+                left: calc(50% - 15px);
+            }
+        }
+
+        /* ---------- Response ticket ---------- */
+        .ticket__empty {
+            color: var(--chrome);
+            font-size: 14px;
+            font-style: italic;
+            margin: 0;
+            padding: 6px 0 2px;
+        }
+
+        .ticket--filled {
+            position: relative;
+            margin-top: 18px;
+            background: var(--asphalt);
+            border: 1.5px dashed rgba(169, 179, 191, 0.35);
+            border-radius: 12px;
+            padding: 20px 22px;
+            line-height: 1.6;
+        }
+
+        .ticket--filled::before,
+        .ticket--filled::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 18px;
+            height: 18px;
+            background: var(--panel);
+            border-radius: 50%;
+            transform: translateY(-50%);
+        }
+
+        .ticket--filled::before { left: -9px; }
+        .ticket--filled::after { right: -9px; }
+
+        .ticket--filled h1,
+        .ticket--filled h2,
+        .ticket--filled h3 {
+            color: var(--signboard);
+            margin-top: 0;
+        }
+
+        .ticket--filled code {
+            background: rgba(169, 179, 191, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        .ticket--filled pre {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 12px;
             border-radius: 8px;
-            min-height: 50px;
-            color: #fff;
+            overflow-x: auto;
         }
-        #response h3 {
-            color: #fff;
-            font-size: 1.2em;
+
+        .ticket--filled pre code {
+            background: none;
+            padding: 0;
         }
-        #response strong {
-            color: #ffcc00;
+
+        .ticket--filled a {
+            color: var(--signboard);
         }
-        #response ul {
+
+        .ticket--filled ul,
+        .ticket--filled ol {
             padding-left: 20px;
         }
-        #response li {
-            margin-bottom: 5px;
+
+        /* ---------- Notice / error ---------- */
+        .notice {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: rgba(255, 75, 62, 0.12);
+            border: 1px solid rgba(255, 75, 62, 0.4);
+            color: #ffb3ac;
+            font-size: 13px;
+            line-height: 1.5;
         }
-        #response pre {
-            color: #fff;
-        }
+
+        /* ---------- Footer ---------- */
         .footer {
-            margin-top: 50px;
-            padding: 20px;
-            background: #2c2c2c;
-            color: #fff;
             text-align: center;
-            border-radius: 8px;
+            margin-top: 38px;
+            color: var(--chrome);
+            font-size: 12px;
         }
-        .spinner-border {
-            display: none;
-            margin-left: 10px;
+
+        .route-dots {
+            letter-spacing: 6px;
+            margin-bottom: 8px;
+            opacity: 0.5;
         }
-        #errorNote {
-            display: none;
-            margin-top: 10px;
-            color: #ff8080;
-            font-size: 0.9em;
+
+        @media (max-width: 480px) {
+            .composer {
+                flex-direction: column;
+            }
+            .btn {
+                width: 100%;
+            }
+            .signboard__plate {
+                padding: 16px 26px;
+            }
         }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg">
-        <a class="navbar-brand" href="#">BernardAi</a>
-    </nav>
-    <div class="container">
-        <h2>Pangutana kang BernardAi</h2>
+    <main class="app">
+        <header class="signboard">
+            <div class="signboard__plate">
+                <span class="signboard__route" aria-hidden="true">12H</span>
+                <h1 class="signboard__title">BernardAi</h1>
+                <p class="signboard__dest">Bisaya na AI, tanan pangutana tubagon sa nga binisaya para maka sabot ka.</p>
+            </div>
+        </header>
 
-        <div class="model-row">
-            <label for="modelSelect">Modelo (libre ra, gikuha live gikan sa OpenRouter)</label>
-            <select class="form-control" id="modelSelect" disabled>
-                <option value="">Gina-load ang mga libre nga modelo...</option>
-            </select>
+        <section class="panel" aria-labelledby="modelSelect-label">
+            <div class="field__head">
+                <label id="modelSelect-label" for="modelSelect">Pilia ang Modelo</label>
+                <span class="field__hint">libre tanan — walay bayad</span>
+            </div>
+            <div class="select-wrap">
+                <select id="modelSelect" disabled>
+                    <option value="">Gina-andam ang lista sa mga libre nga modelo...</option>
+                </select>
+                <svg class="select-wrap__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" />
+                </svg>
+            </div>
             <div class="model-meta" id="modelMeta"></div>
-        </div>
+            <div class="model-capacity" id="modelCapacity" hidden></div>
+        </section>
 
-        <div class="form-group">
-            <input type="text" class="form-control" id="userInput" placeholder="Isulat ang imong pangutana" />
-        </div>
-        <button class="btn btn-custom" id="askBtn" onclick="sendMessage()" disabled><i class="fas fa-paper-plane"></i> Pangutana!</button>
-        <button class="btn btn-stop" onclick="stopRequest()"><i class="fas fa-stop"></i> Hunong</button>
-        <div class="spinner-border text-success" role="status">
-            <span class="sr-only">Gina-load...</span>
-        </div>
-        <div id="response"></div>
-        <div id="errorNote">
-            Pahibalo: ang libre nga mga modelo gipang-share ug gi-rate-limit sa OpenRouter, mao nga usahay mahinay o dili available sa makadiyot.
-        </div>
-    </div>
-    <div class="footer">
-        &copy; 2026 BernardAi. Tanang katungod gigahin.
-    </div>
+        <section class="panel" aria-label="Pangutana kang BernardAi">
+            <label class="visually-hidden" for="userInput">Isulat ang imong pangutana</label>
+            <div class="composer">
+                <input type="text" id="userInput" placeholder="Unsa may imong pangutana?" autocomplete="off" />
+                <button type="button" class="btn btn--go" id="askBtn" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M22 2 11 13" />
+                        <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+                    </svg>
+                    Tubaga
+                </button>
+                <button type="button" class="btn btn--stop" id="stopBtn" hidden>
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                    Hunong
+                </button>
+            </div>
+
+            <div class="transit" id="transit" hidden aria-live="polite">
+                <div class="transit__track" aria-hidden="true">
+                    <svg class="transit__jeep" viewBox="0 0 48 28">
+                        <rect x="2" y="7" width="34" height="12" rx="2" />
+                        <rect x="28" y="3" width="14" height="10" rx="2" />
+                        <circle class="wheel" cx="12" cy="21" r="5" />
+                        <circle class="hub" cx="12" cy="21" r="2" />
+                        <circle class="wheel" cx="32" cy="21" r="5" />
+                        <circle class="hub" cx="32" cy="21" r="2" />
+                    </svg>
+                </div>
+                <p class="transit__label">Nagbiyahe pa ang tubag...</p>
+            </div>
+
+            <div id="response" aria-live="polite">
+                <p class="ticket__empty">Wala pay pangutana. Sige, sulayi!</p>
+            </div>
+
+            <p class="notice" id="errorNote" hidden></p>
+        </section>
+
+        <footer class="footer">
+            <div class="route-dots" aria-hidden="true">● · ● · ● · ● · ●</div>
+            <p>BernardAi © 2026 — gibuhat sa Cebu 🇵🇭. Ang tanang tubag naa sa Bisaya.</p>
+        </footer>
+    </main>
+
     <script>
-        let controller;
-
         // No API key here. The browser only ever talks to our own
         // serverless functions (/api/models and /api/chat), which hold
         // the real key and only ever forward requests to models that are
         // free at the moment the request is made.
-        async function loadModels() {
-            const select = document.getElementById('modelSelect');
-            const meta = document.getElementById('modelMeta');
-            const askBtn = document.getElementById('askBtn');
-            const errorNote = document.getElementById('errorNote');
 
+        let controller;
+        let currentModels = [];
+
+        const els = {
+            select: document.getElementById('modelSelect'),
+            meta: document.getElementById('modelMeta'),
+            capacity: document.getElementById('modelCapacity'),
+            askBtn: document.getElementById('askBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            input: document.getElementById('userInput'),
+            response: document.getElementById('response'),
+            errorNote: document.getElementById('errorNote'),
+            transit: document.getElementById('transit'),
+        };
+
+        function showError(msg) {
+            els.errorNote.textContent = msg;
+            els.errorNote.hidden = false;
+        }
+
+        function hideError() {
+            els.errorNote.hidden = true;
+        }
+
+        function updateCapacity() {
+            const chosen = currentModels.find((m) => m.id === els.select.value);
+            if (chosen && chosen.context_length) {
+                els.capacity.textContent = 'Kapasidad: ~' + chosen.context_length.toLocaleString('en-US') + ' ka tokens';
+                els.capacity.hidden = false;
+            } else {
+                els.capacity.hidden = true;
+            }
+        }
+
+        async function loadModels() {
             try {
                 const res = await fetch('/api/models');
                 const data = await res.json();
@@ -189,61 +571,68 @@
                     throw new Error(data.error || ('HTTP ' + res.status));
                 }
 
-                const models = data.models || [];
-                select.innerHTML = '';
+                currentModels = data.models || [];
+                els.select.innerHTML = '';
 
-                if (models.length === 0) {
-                    select.innerHTML = '<option value="">Walay libre nga modelo karon</option>';
-                    meta.textContent = 'Walay $0 nga modelo nga naka-lista sa OpenRouter karon. Sulayi og refresh sa ulahi.';
+                if (currentModels.length === 0) {
+                    els.select.innerHTML = '<option value="">Walay libre nga modelo karon</option>';
+                    els.meta.textContent = 'Walay $0 nga modelo nga naka-lista sa OpenRouter karon. Sulayi og refresh sa ulahi.';
                     return;
                 }
 
-                models.forEach((m) => {
+                currentModels.forEach((m) => {
                     const opt = document.createElement('option');
                     opt.value = m.id;
                     opt.textContent = m.name;
-                    select.appendChild(opt);
+                    els.select.appendChild(opt);
                 });
 
-                select.disabled = false;
-                askBtn.disabled = false;
-                meta.textContent = models.length + ' ka libre nga modelo ang available karon.';
+                els.select.disabled = false;
+                els.askBtn.disabled = false;
+                els.meta.textContent = currentModels.length + ' ka libre nga modelo ang andam — pilia lang imong gusto.';
+                updateCapacity();
             } catch (error) {
-                select.innerHTML = '<option value="">Wala nakarga ang listahan sa modelo</option>';
-                errorNote.textContent = 'Wala nakarga ang listahan sa libre nga mga modelo: ' + error.message;
-                errorNote.style.display = 'block';
+                els.select.innerHTML = '<option value="">Wala nakarga ang listahan sa modelo</option>';
+                showError('Wala nakarga ang listahan sa libre nga mga modelo: ' + error.message);
             }
         }
 
+        function setLoading(isLoading) {
+            els.transit.hidden = !isLoading;
+            els.askBtn.disabled = isLoading;
+            els.stopBtn.hidden = !isLoading;
+            els.input.disabled = isLoading;
+            els.select.disabled = isLoading;
+        }
+
         async function sendMessage() {
-            const input = document.getElementById('userInput').value;
-            const model = document.getElementById('modelSelect').value;
-            const responseDiv = document.getElementById('response');
-            const errorNote = document.getElementById('errorNote');
-            const spinner = document.querySelector('.spinner-border');
+            const input = els.input.value.trim();
+            const model = els.select.value;
+
+            hideError();
+
             if (!input) {
-                responseDiv.innerHTML = 'Palihug pagsulat og pangutana.';
+                showError('Palihug pagsulat og pangutana una mag-click sa "Tubaga".');
+                els.input.focus();
                 return;
             }
             if (!model) {
-                responseDiv.innerHTML = 'Wala pay napiling modelo — hulata una nga makumpleto ang pag-load sa listahan.';
+                showError('Wala pay napiling modelo — hulata una nga makumpleto ang pag-load sa listahan.');
                 return;
             }
-            responseDiv.innerHTML = '';
-            errorNote.style.display = 'none';
-            spinner.style.display = 'inline-block';
+
+            els.response.innerHTML = '';
+            els.response.classList.remove('ticket--filled');
+            setLoading(true);
 
             controller = new AbortController();
-            const signal = controller.signal;
 
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: input, model: model }),
-                    signal: signal,
+                    signal: controller.signal,
                 });
 
                 const data = await response.json();
@@ -253,18 +642,17 @@
                 }
 
                 const markdownText = data.choices?.[0]?.message?.content || 'Walay tubag nga nadawat.';
-                responseDiv.innerHTML = marked.parse(markdownText);
-                errorNote.style.display = 'block';
+                els.response.innerHTML = marked.parse(markdownText);
+                els.response.classList.add('ticket--filled');
             } catch (error) {
                 if (error.name === 'AbortError') {
-                    responseDiv.innerHTML = 'Gikansela ang request.';
+                    els.response.innerHTML = '<p class="ticket__empty">Gikansela ang pangutana. Sulayi og usab kung gusto.</p>';
                 } else {
-                    responseDiv.innerHTML = 'Sayop: ' + error.message;
-                    errorNote.textContent = 'Pahibalo: ang libre nga mga modelo gipang-share ug gi-rate-limit sa OpenRouter, mao nga usahay mahinay o dili available sa makadiyot.';
-                    errorNote.style.display = 'block';
+                    els.response.innerHTML = '<p class="ticket__empty">Wala pay pangutana. Sige, sulayi!</p>';
+                    showError('Sayop: ' + error.message);
                 }
             } finally {
-                spinner.style.display = 'none';
+                setLoading(false);
             }
         }
 
@@ -273,6 +661,13 @@
                 controller.abort();
             }
         }
+
+        els.askBtn.addEventListener('click', sendMessage);
+        els.stopBtn.addEventListener('click', stopRequest);
+        els.select.addEventListener('change', updateCapacity);
+        els.input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
 
         loadModels();
     </script>
