@@ -6,62 +6,96 @@ in a Vercel serverless function.
 
 ## What's new in this build
 
-- **Full-UI internationalization.** Switching the answer language now
+- **A dashboard gauge as the theme control.** The old sun/moon icon-swap
+  button is now a small instrument-cluster dial: a needle sweeps across a
+  semicircular track between a moon (night) and a sun (day) icon,
+  reading the same `--sky-t` value that drives the background. It's both
+  a live readout of the time-of-day state and the click target that
+  overrides it — one piece embodying both the "dynamic weather" system
+  and the jeepney-dashboard visual world.
+- **Full-UI internationalization.** Switching the answer language
   re-renders the *entire interface* — labels, placeholders, buttons,
   error copy, everything — not just the AI's reply. English is the
   default and the fallback for any missing string. The only text that
   never translates is the brand name, "BERN-AI".
-- **Dynamic, time-aware sky.** Day/night isn't a hard binary anymore. A
-  `--sky-t` CSS variable (0 → night, 1 → day) is continuously
-  recalculated from the visitor's local clock across dawn/dusk
-  checkpoints, so the background gradient eases through the day the way
-  a real sky would. Tapping the toggle switches to a fixed manual
-  day/night mode instead (persisted across visits).
-- **Canvas-based code rain.** The ambient "hacker" background is now a
-  real `<canvas>` animation (`js/codeRain.js`) — falling glyphs with a
-  fading trail, colored from the live theme accent — instead of static
-  drifting text blocks. Respects `prefers-reduced-motion`.
-- **Modular, single-responsibility architecture.** See "Architecture"
-  below.
+- **Dynamic, time-aware sky.** A `--sky-t` CSS variable (0 → night, 1 →
+  day) is continuously recalculated from the visitor's local clock
+  across dawn/dusk checkpoints, easing the background gradient, a
+  star field, and the gauge needle together. Tapping the gauge switches
+  to a fixed manual override instead (persisted across visits).
+- **Canvas-based code rain.** The ambient "hacker" background is a real
+  `<canvas>` animation (`js/codeRain.js`) — falling glyphs with a fading
+  trail, colored from the live theme accent. Respects
+  `prefers-reduced-motion`.
+- **Star field + grain texture.** A scattered star field fades in at
+  night (pure CSS, driven by `--sky-t`), and a very low-opacity noise
+  texture sits over the whole page for a tactile, less-flat surface.
+  Both are pointer-events: none and cost no extra JS.
+- **Chrome-lettering title.** The "BERN-AI" wordmark gets a metallic
+  sheen blended on top of its solid, fully-readable base color —
+  styled after the cutout chrome nameplates real jeepneys carry on
+  their hood or dashboard.
+- **Capacity gauge bar.** The model's context-length readout is now a
+  small log-scaled load bar instead of plain text — a literal visual for
+  the "Kapasidad" (capacity) language already used in the copy, echoing
+  a jeepney's fuel/passenger-load gauge.
+- **Standard Vercel project layout.** All static assets now live under
+  `public/`, with `api/` and `lib/` at the project root — the
+  conventional layout Vercel's zero-config static + serverless-functions
+  deploy expects. Added `favicon.svg`, `manifest.json`, `robots.txt`,
+  and an explicit `vercel.json` for static-asset cache headers.
 
 ## Architecture
 
 ```
-index.html          Page shell only. data-i18n hooks mark translatable
-                     text; no copy is hardcoded in the markup.
-css/
-  main.css           Entry point — imports every module below in order.
-  tokens.css         Color, sky, type-scale, motion variables. Nothing
-                      else in css/ hardcodes a color or hex value.
-  base.css           Reset + base typography + focus rings.
-  sky.css             The dynamic background layers (gradient + canvas).
-  layout.css         Page-level structure (.app shell, footer).
-  components.css     Every UI widget (signboard, panels, forms, buttons,
-                      transit animation, response ticket).
-  responsive.css     Breakpoint overrides only.
-js/
-  main.js            Composition root — queries the DOM once, wires
-                      every module together. No business logic here.
-  i18n.js            Translation dictionary + engine. Single source of
-                      truth for every UI string in every language.
-  theme.js           Day/night + time-of-day sky controller.
-  codeRain.js         Canvas animation class.
-  api.js             Thin fetch wrapper for /api/models and /api/chat.
-  modelSelector.js   Owns the model <select>: fetch, render, capacity.
-  languageSelector.js Owns the language <select>: drives i18n.setLocale.
-  chatPanel.js       Owns the composer, request lifecycle, response
-                      rendering.
-api/
-  models.js          Serverless function — live list of free OpenRouter
-                      models.
-  chat.js            Serverless function — re-verifies the requested
-                      model is free, builds the language-aware system
-                      prompt, forwards to OpenRouter. Holds the API key.
+public/                Everything the browser loads directly.
+  index.html            Page shell only. data-i18n hooks mark
+                         translatable text; no copy is hardcoded here.
+  favicon.svg            Route-badge icon, matches the signboard style.
+  manifest.json          Web app manifest (name, theme color, icon).
+  robots.txt              Allows crawling of the app, blocks /api/.
+  css/
+    main.css              Entry point — imports every module in order.
+    tokens.css            Color, sky, type-scale, motion variables.
+                           Nothing else in css/ hardcodes a color value.
+    base.css               Reset + base typography + focus rings.
+    sky.css                 Dynamic background: gradient, star field,
+                            canvas code-rain, grain texture.
+    layout.css             Page-level structure (.app shell, footer).
+    components.css         Every UI widget: signboard + chrome title,
+                            dashboard gauge toggle, panels, forms,
+                            buttons, transit animation, capacity gauge,
+                            response ticket.
+    responsive.css         Breakpoint overrides only.
+  js/
+    main.js                Composition root — queries the DOM once,
+                            wires every module together. No business
+                            logic here.
+    i18n.js                Translation dictionary + engine. Single
+                            source of truth for every UI string in
+                            every language.
+    theme.js                Day/night + time-of-day sky controller.
+    codeRain.js              Canvas animation class.
+    api.js                  Thin fetch wrapper for /api/models and
+                            /api/chat.
+    modelSelector.js        Owns the model <select>: fetch, render,
+                            capacity gauge.
+    languageSelector.js     Owns the language <select>: drives
+                            i18n.setLocale.
+    chatPanel.js             Owns the composer, request lifecycle,
+                            response rendering.
+api/                    Vercel serverless functions (must stay at the
+                         project root, alongside public/, not inside it).
+  models.js               Live list of currently-free OpenRouter models.
+  chat.js                  Re-verifies the requested model is free,
+                            builds the language-aware system prompt,
+                            forwards to OpenRouter. Holds the API key.
 lib/
-  freeModels.js      Shared, cached "what's free right now" lookup used
-                      by both serverless functions.
-.env.example         Template only — your real key never goes in a
-                      committed file.
+  freeModels.js            Shared, cached "what's free right now"
+                            lookup used by both serverless functions.
+vercel.json              Explicit cache headers for static assets.
+.env.example              Template only — your real key never goes in
+                          a committed file.
 ```
 
 Each JS module owns exactly one concern and exposes a small class or
@@ -105,11 +139,14 @@ means adding one key to every locale block in `i18n.js` and one
   full day ~8am–5pm, dusk ~6pm, full night ~8pm–5am) and linearly
   interpolates a `--sky-t` value between them every 5 minutes while in
   `auto` mode.
-- `sky.css` reads `--sky-t` to position and fade a radial gradient behind
-  everything, so the backdrop visibly warms and dims as the real clock
-  moves through the day — no weather API required.
-- Tapping the theme button switches out of `auto` into an explicit
-  `day`/`night` override (stored in `localStorage`), same as before.
+- `sky.css` reads `--sky-t` in three places: to position/fade the radial
+  gradient behind everything, to fade the star field in and out, and
+  (in `components.css`) to rotate the dashboard gauge's needle — so the
+  backdrop, the stars, and the toggle control all move together as one
+  system, no weather API required.
+- Tapping the gauge switches out of `auto` into an explicit `day`/`night`
+  override (stored in `localStorage`); the needle then snaps to a fixed
+  end of the dial instead of continuing to track the clock.
 
 ## Deploy to GitHub + Vercel
 
