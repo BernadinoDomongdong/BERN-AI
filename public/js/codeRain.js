@@ -39,8 +39,8 @@ export class CodeRain {
         this.dropY = new Array(this.columns).fill(0).map(() => Math.random() * -100);
     }
 
-    _accentColor() {
-        return getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#ffc22e';
+    _rainColor() {
+        return getComputedStyle(document.documentElement).getPropertyValue('--color-code-rain').trim() || '#ffc22e';
     }
 
     _drawFrame() {
@@ -57,7 +57,7 @@ export class CodeRain {
         ctx.fillRect(0, 0, width, height);
 
         ctx.font = `${FONT_SIZE}px "Space Mono", monospace`;
-        ctx.fillStyle = this._accentColor();
+        ctx.fillStyle = this._rainColor();
 
         for (let i = 0; i < this.columns; i++) {
             const glyph = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];

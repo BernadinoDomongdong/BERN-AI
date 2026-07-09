@@ -31,9 +31,17 @@ html[data-theme="night"] {
     --color-input-bg: #0b0e14;
 
     --code-rain-opacity: 0.22;
+    --color-code-rain: var(--color-accent);
     --sky-glow: rgba(255, 194, 46, 0.05);
     --grain-opacity: 0.05;
     --star-opacity-max: 0.7;
+    --cloud-opacity-max: 0.5;
+    --sunray-opacity-max: 0.35;
+
+    --panel-bg: linear-gradient(165deg, #171d2d 0%, #11151f 100%);
+    --gauge-bg: linear-gradient(155deg, #1a2032 0%, #0d1119 100%);
+    --gauge-moon: #a9bdf5;
+    --gauge-sun: #ffc22e;
 
     color-scheme: dark;
 }
@@ -57,10 +65,18 @@ html[data-theme="day"] {
     --color-code-bg: rgba(27, 32, 40, 0.06);
     --color-input-bg: #f4f7fa;
 
-    --code-rain-opacity: 0.10;
-    --sky-glow: rgba(255, 194, 46, 0.12);
+    --code-rain-opacity: 0.16;
+    --color-code-rain: #3d5a80;
+    --sky-glow: rgba(255, 194, 46, 0.16);
     --grain-opacity: 0.028;
     --star-opacity-max: 0.7;
+    --cloud-opacity-max: 0.5;
+    --sunray-opacity-max: 0.35;
+
+    --panel-bg: linear-gradient(165deg, #ffffff 0%, #f3f7fc 100%);
+    --gauge-bg: linear-gradient(155deg, #ffffff 0%, #eef3f8 100%);
+    --gauge-moon: #7c8fc4;
+    --gauge-sun: #ffc22e;
 
     color-scheme: light;
 }

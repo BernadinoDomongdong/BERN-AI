@@ -1,15 +1,10 @@
 /* =========================================================================
    sky.css — the dynamic day/night background.
 
-   Two layers, both fixed and z-index: 0, behind all content:
-     1. .sky        a soft radial gradient whose position/opacity is
-                     driven by --sky-t (written continuously by theme.js
-                     as local time moves through dawn/dusk), giving a
-                     genuinely time-of-day-aware backdrop rather than a
-                     binary switch.
-     2. #codeRain    a <canvas> painted by codeRain.js with falling
-                      glyphs, Matrix-style. Its color reads the current
-                      --color-accent so it always matches the theme.
+   Both night and day get an equally atmospheric backdrop, built from the
+   same --sky-t scalar (0 = full night, 1 = full day), just different
+   layers: night gets a star field, day gets sun rays and drifting
+   clouds. All are fixed, z-index: 0, pointer-events: none.
    ========================================================================= */
 
 .sky {
@@ -26,6 +21,9 @@
     transition: background 1.2s var(--ease-standard);
 }
 
+/* Falling glyphs, Matrix-style. Color and opacity are theme tokens
+   (--color-code-rain / --code-rain-opacity) so day mode gets a legible
+   cool ink tone instead of washed-out yellow-on-light. */
 #codeRain {
     position: fixed;
     inset: 0;
@@ -68,6 +66,86 @@
     50% { opacity: calc((1 - var(--sky-t, 0)) * var(--star-opacity-max) * 0.55); }
 }
 
+/* Day mode's counterpart to the star field: a slow-rotating fan of
+   light rays anchored top-right, behind the gauge — as if the sun the
+   gauge's needle points to at midday is the actual light source. Fades
+   in with --sky-t, so it's the star field's mirror image rather than a
+   separate on/off effect. */
+.sun-rays {
+    position: fixed;
+    top: -20vmax;
+    right: -20vmax;
+    width: 70vmax;
+    height: 70vmax;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 50%;
+    background: repeating-conic-gradient(
+        from 0deg,
+        rgba(255, 194, 46, 0.14) 0deg 1.5deg,
+        transparent 1.5deg 12deg
+    );
+    opacity: calc(var(--sky-t, 0) * var(--sunray-opacity-max));
+    transition: opacity 1.2s var(--ease-standard);
+    animation: spin-rays 140s linear infinite;
+}
+
+@keyframes spin-rays {
+    to { transform: rotate(360deg); }
+}
+
+/* Three soft, blurred cloud shapes drifting left to right at different
+   speeds/depths — visible only as --sky-t rises toward day, silent at
+   night. Pure CSS, no JS, same trick as the star field. */
+.clouds {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: calc(var(--sky-t, 0) * var(--cloud-opacity-max));
+    transition: opacity 1.2s var(--ease-standard);
+}
+
+.cloud {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(7px);
+    background: radial-gradient(ellipse at center, rgba(255, 250, 235, 0.9), rgba(255, 250, 235, 0) 70%);
+}
+
+.cloud:nth-child(1) {
+    top: 10%;
+    left: -30%;
+    width: 240px;
+    height: 76px;
+    animation: drift-cloud 75s linear infinite;
+}
+
+.cloud:nth-child(2) {
+    top: 22%;
+    left: -45%;
+    width: 170px;
+    height: 58px;
+    opacity: 0.75;
+    animation: drift-cloud 100s linear infinite;
+    animation-delay: -30s;
+}
+
+.cloud:nth-child(3) {
+    top: 15%;
+    left: -18%;
+    width: 130px;
+    height: 46px;
+    opacity: 0.55;
+    animation: drift-cloud 58s linear infinite reverse;
+}
+
+@keyframes drift-cloud {
+    from { transform: translateX(0); }
+    to { transform: translateX(160vw); }
+}
+
 /* Subtle full-page noise texture — gives the signage/paper-ticket
    surfaces a tactile grain instead of reading as flat vector fills.
    Sits above content (z-index above .app) but stays pointer-events:none
@@ -90,5 +168,14 @@
 
     .stars {
         animation: none;
+    }
+
+    .sun-rays {
+        animation: none;
+    }
+
+    .cloud {
+        animation: none;
+        display: none;
     }
 }
