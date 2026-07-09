@@ -1,123 +1,148 @@
-# BERN-AI (secure, free-models-only, multilingual edition)
+# BERN-AI
 
-This version never puts your OpenRouter API key in any file — it lives only
-in Vercel's Environment Variables, server-side, in the `/api/chat`
-serverless function. The browser calls `/api/chat`; it never sees the key.
+A small, free, multilingual AI chat app with a jeepney-signboard visual
+identity. The OpenRouter API key never touches the browser — it lives only
+in a Vercel serverless function.
 
-## What's in this build
+## What's new in this build
 
-- **Answer language, your choice.** A "Pinulongan sa Tubag" dropdown lets
-  you pick the language BERN-AI answers in — English is the default, with
-  Binisaya/Cebuano, Filipino, Spanish, Japanese, Korean, Chinese, French,
-  German, Arabic, or a free-text "other" option. Only the AI's *answer*
-  changes language; the interface labels stay as-is. This is sent as a
-  `language` field to `/api/chat`, which builds the system prompt around
-  it server-side (see `api/chat.js`).
-- **Day / night mode.** A toggle button (top-right, always visible) flips
-  between a dark "night" theme and a light "day" theme. The choice is
-  remembered in the browser (`localStorage`) and applied before first
-  paint, so there's no flash of the wrong theme on reload.
-- **Jeepney-signboard visual identity.** A yellow destination-board
-  header, a "capacity" readout per model (mapped from context length,
-  like seats on a ride), a mini jeepney driving along a dashed route
-  while a reply is in transit, and a torn-ticket style card for the
-  answer.
-- **Ambient code-rain background.** A blurred, low-opacity layer of
-  drifting code snippets behind everything — purely decorative
-  (`aria-hidden`), GPU-cheap, and automatically disabled for people with
-  `prefers-reduced-motion` set.
-- **Responsive.** Single-column on phones, a two-column settings grid on
-  wider screens, safe-area padding for notched phones, and a minimum
-  44px tap target on the theme toggle.
+- **Full-UI internationalization.** Switching the answer language now
+  re-renders the *entire interface* — labels, placeholders, buttons,
+  error copy, everything — not just the AI's reply. English is the
+  default and the fallback for any missing string. The only text that
+  never translates is the brand name, "BERN-AI".
+- **Dynamic, time-aware sky.** Day/night isn't a hard binary anymore. A
+  `--sky-t` CSS variable (0 → night, 1 → day) is continuously
+  recalculated from the visitor's local clock across dawn/dusk
+  checkpoints, so the background gradient eases through the day the way
+  a real sky would. Tapping the toggle switches to a fixed manual
+  day/night mode instead (persisted across visits).
+- **Canvas-based code rain.** The ambient "hacker" background is now a
+  real `<canvas>` animation (`js/codeRain.js`) — falling glyphs with a
+  fading trail, colored from the live theme accent — instead of static
+  drifting text blocks. Respects `prefers-reduced-motion`.
+- **Modular, single-responsibility architecture.** See "Architecture"
+  below.
 
-## Files
+## Architecture
 
-Split into separate files on purpose — one job per file, easier to
-maintain and diff than one giant HTML page:
+```
+index.html          Page shell only. data-i18n hooks mark translatable
+                     text; no copy is hardcoded in the markup.
+css/
+  main.css           Entry point — imports every module below in order.
+  tokens.css         Color, sky, type-scale, motion variables. Nothing
+                      else in css/ hardcodes a color or hex value.
+  base.css           Reset + base typography + focus rings.
+  sky.css             The dynamic background layers (gradient + canvas).
+  layout.css         Page-level structure (.app shell, footer).
+  components.css     Every UI widget (signboard, panels, forms, buttons,
+                      transit animation, response ticket).
+  responsive.css     Breakpoint overrides only.
+js/
+  main.js            Composition root — queries the DOM once, wires
+                      every module together. No business logic here.
+  i18n.js            Translation dictionary + engine. Single source of
+                      truth for every UI string in every language.
+  theme.js           Day/night + time-of-day sky controller.
+  codeRain.js         Canvas animation class.
+  api.js             Thin fetch wrapper for /api/models and /api/chat.
+  modelSelector.js   Owns the model <select>: fetch, render, capacity.
+  languageSelector.js Owns the language <select>: drives i18n.setLocale.
+  chatPanel.js       Owns the composer, request lifecycle, response
+                      rendering.
+api/
+  models.js          Serverless function — live list of free OpenRouter
+                      models.
+  chat.js            Serverless function — re-verifies the requested
+                      model is free, builds the language-aware system
+                      prompt, forwards to OpenRouter. Holds the API key.
+lib/
+  freeModels.js      Shared, cached "what's free right now" lookup used
+                      by both serverless functions.
+.env.example         Template only — your real key never goes in a
+                      committed file.
+```
 
-- `index.html` — page structure only. Sets the theme attribute inline
-  (before CSS loads) to avoid a flash of the wrong theme, then loads
-  `styles.css` and `app.js`. Contains no secrets.
-- `styles.css` — all styling. Day/night themes are just two blocks of
-  CSS custom properties (`:root` / `[data-theme="day"]`); every
-  component reads `var(--color-*)`, so nothing else needs to change to
-  add a third theme later.
-- `app.js` — all interactive logic, organized as one `init*()` function
-  per feature (theme, code-rain, language selector, model loading,
-  chat) plus a single `init()` that wires them up on `DOMContentLoaded`.
-- `api/models.js` — serverless function that returns the current list of
-  free OpenRouter models.
-- `api/chat.js` — serverless function that reads `OPENROUTER_API_KEY` from
-  the environment, verifies the requested model is free, sanitizes and
-  applies the requested answer language, and forwards the chat request
-  to OpenRouter.
-- `lib/freeModels.js` — shared helper (used by both API functions) that
-  fetches and caches OpenRouter's free-model list.
-- `.env.example` — template only; your real key never goes in a file
-  that gets committed.
+Each JS module owns exactly one concern and exposes a small class or
+function API; `main.js` is the only file that knows how they fit
+together. Adding a new language means editing `i18n.js` only — no
+changes to `main.js`, the HTML, or the backend. Adding a new UI string
+means adding one key to every locale block in `i18n.js` and one
+`data-i18n` attribute in `index.html`.
 
 ## How the free-model safety net works
 
-- `/api/models` asks OpenRouter which models are free *right now*
-  (price = $0 for both prompt and completion tokens) and returns that
-  list. The frontend fills the dropdown from this endpoint on page load,
-  so it always reflects what's actually free and available.
-- `/api/chat` independently re-checks the model you picked against that
-  same live free list before forwarding your request. If somehow a
-  non-free or unknown model ID ever reached the server, it falls back to
-  the first available free model instead of forwarding the request —
-  so you can never accidentally get billed.
-- Both endpoints cache OpenRouter's model list for a few minutes so
-  normal use doesn't hammer OpenRouter's API.
+- `/api/models` asks OpenRouter which models are free *right now* (price
+  = $0 for both prompt and completion tokens) and returns that list. The
+  frontend fills the dropdown from this endpoint on page load.
+- `/api/chat` independently re-checks the requested model against that
+  same live free list before forwarding the request. If a non-free or
+  unknown model ID ever reached the server, it falls back to the first
+  available free model instead of forwarding the request.
+- Both endpoints cache OpenRouter's model list for a few minutes.
+
+## How the language system works
+
+- `i18n.js` holds one `strings` object per locale, keyed by dot-path
+  (e.g. `composer.ask`). English is `DEFAULT_LOCALE` and doubles as the
+  fallback for any key missing in another locale.
+- `LanguageSelector` (`languageSelector.js`) is the only place that calls
+  `i18n.setLocale()`. Choosing a language does two things: sets the
+  `language` value sent to `/api/chat` (via `promptNameFor`) **and**
+  swaps the whole UI's copy (via `i18n.applyToDocument()`), which walks
+  every `[data-i18n]` / `[data-i18n-placeholder]` / `[data-i18n-aria-label]`
+  element in the DOM.
+- The backend (`api/chat.js`) still accepts free-text language names, so
+  picking "Other…" and typing anything works without backend changes —
+  the UI copy simply stays in English for languages we don't ship
+  strings for.
+- RTL languages (Arabic) automatically flip `dir="rtl"` on `<html>`.
+
+## How the dynamic sky works
+
+- `theme.js` maintains a small table of local-hour checkpoints (dawn ~6am,
+  full day ~8am–5pm, dusk ~6pm, full night ~8pm–5am) and linearly
+  interpolates a `--sky-t` value between them every 5 minutes while in
+  `auto` mode.
+- `sky.css` reads `--sky-t` to position and fade a radial gradient behind
+  everything, so the backdrop visibly warms and dims as the real clock
+  moves through the day — no weather API required.
+- Tapping the theme button switches out of `auto` into an explicit
+  `day`/`night` override (stored in `localStorage`), same as before.
 
 ## Deploy to GitHub + Vercel
 
-1. **Create a new GitHub repo** and push this folder to it as-is.
-   The `.gitignore` already excludes `.env`, so there's nothing secret to
-   worry about committing.
+1. **Push this folder to a new GitHub repo.** `.gitignore` already
+   excludes `.env`.
+2. **Get a fresh OpenRouter API key** at https://openrouter.ai/keys.
+   (If a key was ever pasted into a chat, screenshot, or committed
+   before, treat it as burned — revoke and regenerate.)
+3. **Import the repo into Vercel** — Framework preset: "Other" (static
+   site + two small serverless functions, no build step).
+4. **Add the environment variable in Vercel:**
+   Project → Settings → Environment Variables →
+   `OPENROUTER_API_KEY` = your new key (Production, plus
+   Preview/Development if you want local parity).
+5. **Deploy.** The key lives only in Vercel's encrypted environment
+   variable store — never in the repo, the deployed bundle, or
+   view-source.
 
-2. **Get a fresh OpenRouter API key.**
-   Go to https://openrouter.ai/keys and generate a new key. (If you ever
-   pasted a key into a chat, screenshot, or committed it before, treat
-   that key as burned — revoke it and make a new one.)
-
-3. **Import the repo into Vercel.**
-   - vercel.com > Add New > Project > select your GitHub repo
-   - Framework preset: "Other" (it's a static site + two small API
-     functions, no build step needed)
-
-4. **Add the environment variable in Vercel** (this is the important step):
-   - Project > Settings > Environment Variables
-   - Name: `OPENROUTER_API_KEY`
-   - Value: your new key from step 2
-   - Add it for Production (and Preview/Development if you want)
-
-   Note: `/api/models` doesn't actually need the key (OpenRouter's model
-   list is public), but `/api/chat` does, since it sends real chat
-   requests.
-
-5. **Deploy.** Vercel builds it automatically. Your key is now only stored
-   in Vercel's encrypted environment variable store — not in your repo,
-   not in the deployed frontend bundle, not visible via view-source.
-
-## Local testing (optional)
-
-If you want to test locally before deploying:
+## Local testing
 
 ```bash
 npm install -g vercel
 cp .env.example .env
-# edit .env and paste your key there (this file is gitignored)
+# edit .env and paste your key there (gitignored)
 vercel dev
 ```
 
-## Notes
+## Adding a language
 
-- The signboard tagline ("Bisaya na AI, tanan pangutana tubagon sa nga
-  binisaya...") is kept as written, but since the actual default is now
-  English with a language switcher, you may want to revisit that line —
-  it's in the `.signboard__dest` element in `index.html`.
-- To add another answer language, just add an entry to `LANGUAGE_OPTIONS`
-  in `app.js` — no backend changes needed, since `api/chat.js` accepts
-  any language name and drops it straight into the system prompt
-  (sanitized for length and stray characters).
+1. Add a new entry to `LOCALES` in `js/i18n.js` with a `label`,
+   `promptName`, and a full `strings` object (copy the `en` block as a
+   template and translate every value).
+2. If the language is right-to-left, add its code to `RTL_LOCALES`.
+3. That's it — `LanguageSelector` picks it up automatically from
+   `i18n.options`, and `api/chat.js` needs no changes since it already
+   accepts any `promptName` as free text.
