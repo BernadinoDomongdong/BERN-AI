@@ -1,0 +1,52 @@
+/* =========================================================================
+   base.css — reset, base typography, focus handling.
+   ========================================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    position: relative;
+    transition: var(--transition-theme);
+}
+
+button,
+input,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 3px dashed var(--color-accent);
+    outline-offset: 2px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* [hidden] must always win regardless of what display an element later
+   receives from a component class (e.g. .composer .input-field). */
+[hidden] {
+    display: none !important;
+}
