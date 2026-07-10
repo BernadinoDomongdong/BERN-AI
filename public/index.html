@@ -14,7 +14,8 @@
         (function () {
             try {
                 var stored = localStorage.getItem('bernai-theme');
-                if (stored === 'day' || stored === 'night') {
+                var mode = localStorage.getItem('bernai-theme-mode');
+                if (mode === 'manual' && (stored === 'day' || stored === 'night')) {
                     document.documentElement.setAttribute('data-theme', stored);
                     document.documentElement.style.setProperty('--sky-t', stored === 'day' ? '1' : '0');
                     return;
@@ -53,28 +54,39 @@
     <!-- Dashboard-style day/night gauge — doubles as the theme toggle.
          The needle's rotation reads var(--sky-t) directly, so it always
          shows the same time-of-day value driving the background; tapping
-         it switches to a fixed manual override (see theme.js). -->
-    <button type="button" class="theme-toggle" id="themeToggle" data-i18n-aria-label="theme.toNight">
-        <svg class="gauge" viewBox="0 0 100 60" aria-hidden="true">
-            <path class="gauge__track" d="M10,52 A40,40 0 0 1 90,52" />
-            <g class="gauge__icon gauge__icon--moon" transform="translate(13,47)">
-                <path d="M7 0a7 7 0 1 0 0 14A5.4 5.4 0 0 1 7 0Z" />
-            </g>
-            <g class="gauge__icon gauge__icon--sun" transform="translate(87,47)" stroke-linecap="round">
-                <circle r="3.6" />
-                <line x1="0" y1="-6.5" x2="0" y2="-4.6" />
-                <line x1="0" y1="6.5" x2="0" y2="4.6" />
-                <line x1="-6.5" y1="0" x2="-4.6" y2="0" />
-                <line x1="6.5" y1="0" x2="4.6" y2="0" />
-                <line x1="-4.6" y1="-4.6" x2="-3.2" y2="-3.2" />
-                <line x1="4.6" y1="4.6" x2="3.2" y2="3.2" />
-                <line x1="-4.6" y1="4.6" x2="-3.2" y2="3.2" />
-                <line x1="4.6" y1="-4.6" x2="3.2" y2="-3.2" />
-            </g>
-            <line class="gauge__needle" x1="50" y1="52" x2="50" y2="18" />
-            <circle class="gauge__hub" cx="50" cy="52" r="3.2" />
-        </svg>
-    </button>
+         it switches to a fixed manual override (see theme.js). The small
+         switch underneath lets the person turn auto (location/time-based)
+         mode back on at any point. -->
+    <div class="theme-control">
+        <button type="button" class="theme-toggle" id="themeToggle" data-i18n-aria-label="theme.toNight">
+            <svg class="gauge" viewBox="0 0 100 60" aria-hidden="true">
+                <path class="gauge__track" d="M10,52 A40,40 0 0 1 90,52" />
+                <g class="gauge__icon gauge__icon--moon" transform="translate(13,47)">
+                    <path d="M7 0a7 7 0 1 0 0 14A5.4 5.4 0 0 1 7 0Z" />
+                </g>
+                <g class="gauge__icon gauge__icon--sun" transform="translate(87,47)" stroke-linecap="round">
+                    <circle r="3.6" />
+                    <line x1="0" y1="-6.5" x2="0" y2="-4.6" />
+                    <line x1="0" y1="6.5" x2="0" y2="4.6" />
+                    <line x1="-6.5" y1="0" x2="-4.6" y2="0" />
+                    <line x1="6.5" y1="0" x2="4.6" y2="0" />
+                    <line x1="-4.6" y1="-4.6" x2="-3.2" y2="-3.2" />
+                    <line x1="4.6" y1="4.6" x2="3.2" y2="3.2" />
+                    <line x1="-4.6" y1="4.6" x2="-3.2" y2="3.2" />
+                    <line x1="4.6" y1="-4.6" x2="3.2" y2="-3.2" />
+                </g>
+                <line class="gauge__needle" x1="50" y1="52" x2="50" y2="18" />
+                <circle class="gauge__hub" cx="50" cy="52" r="3.2" />
+            </svg>
+        </button>
+        <label class="theme-mode-switch" title="Auto (location/time) vs manual">
+            <input type="checkbox" id="themeModeSwitch" class="visually-hidden" checked />
+            <span class="theme-mode-switch__track" aria-hidden="true">
+                <span class="theme-mode-switch__thumb"></span>
+            </span>
+            <span class="visually-hidden">Auto-detect day/night from your location and time</span>
+        </label>
+    </div>
 
     <main class="app">
         <header class="signboard">

@@ -16,6 +16,7 @@ function queryElements() {
     return {
         codeRainCanvas: document.getElementById('codeRain'),
         themeToggle: document.getElementById('themeToggle'),
+        themeModeSwitch: document.getElementById('themeModeSwitch'),
         modelSelect: document.getElementById('modelSelect'),
         modelMeta: document.getElementById('modelMeta'),
         modelCapacity: document.getElementById('modelCapacity'),
@@ -36,13 +37,26 @@ function initThemeToggle(el) {
     const syncLabel = () => {
         const key = themeController.currentTheme === 'night' ? 'theme.toDay' : 'theme.toNight';
         el.themeToggle.setAttribute('aria-label', i18n.t(key));
+        el.themeToggle.classList.toggle('theme-toggle--auto', themeController.isAuto);
     };
 
     syncLabel();
     themeController.onChange(syncLabel);
     i18n.onChange(syncLabel);
 
-    el.themeToggle.addEventListener('click', () => themeController.toggle());
+    el.themeToggle.addEventListener('click', () => {
+        themeController.toggle();
+        if (el.themeModeSwitch) el.themeModeSwitch.checked = false;
+        syncLabel();
+    });
+
+    if (el.themeModeSwitch) {
+        el.themeModeSwitch.checked = themeController.isAuto;
+        el.themeModeSwitch.addEventListener('change', () => {
+            themeController.setAuto(el.themeModeSwitch.checked);
+            syncLabel();
+        });
+    }
 }
 
 function initCodeRain(el) {
@@ -78,6 +92,7 @@ async function init() {
     i18n.applyToDocument();
 
     await modelSelector.load();
+    chatPanel.syncAskAvailability();
 }
 
 document.addEventListener('DOMContentLoaded', init);

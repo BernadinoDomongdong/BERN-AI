@@ -21,8 +21,18 @@ export class ChatPanel {
         this.el.askBtn.addEventListener('click', () => this.send());
         this.el.stopBtn.addEventListener('click', () => this.stop());
         this.el.userInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') this.send();
+            // Enter must never do anything the button itself currently
+            // disallows — otherwise the two paths can drift out of sync
+            // (this was the original bug: Enter worked while a stuck
+            // `disabled` attribute blocked the click).
+            if (event.key === 'Enter' && !this.el.askBtn.disabled) this.send();
         });
+
+        // The model dropdown starts `disabled` in markup and is the only
+        // thing that gates whether asking is possible; re-evaluate the
+        // Ask button every time model readiness could have changed
+        // instead of setting `.disabled` once and hoping it stays right.
+        this.el.modelSelect.addEventListener('change', () => this._refreshAskAvailability());
     }
 
     _showError(message) {
@@ -34,12 +44,24 @@ export class ChatPanel {
         this.el.errorNote.hidden = true;
     }
 
+    /** Public entry point — call whenever model readiness could have
+     *  changed (initial load finishing, locale-triggered re-render). */
+    syncAskAvailability() {
+        this._refreshAskAvailability();
+    }
+
+    _refreshAskAvailability() {
+        const isBusy = !this.el.transit.hidden;
+        const hasModel = this.modelSelector.isReady && Boolean(this.modelSelector.selectedId);
+        this.el.askBtn.disabled = isBusy || !hasModel;
+    }
+
     _setLoading(isLoading) {
         this.el.transit.hidden = !isLoading;
-        this.el.askBtn.disabled = isLoading;
         this.el.stopBtn.hidden = !isLoading;
         this.el.userInput.disabled = isLoading;
         this.el.modelSelect.disabled = isLoading;
+        this._refreshAskAvailability();
     }
 
     _showEmptyState(message) {
