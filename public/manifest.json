@@ -1,0 +1,17 @@
+{
+  "name": "BERN-AI — Free AI Chat",
+  "short_name": "BERN-AI",
+  "description": "Free, multilingual AI chat with a jeepney-signboard identity.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0e14",
+  "theme_color": "#ffc22e",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
