@@ -43,14 +43,41 @@ function queryElements() {
 function initThemeToggle(el) {
     const hourHand = el.themeClock?.querySelector('.clock-hand--hour');
     const minuteHand = el.themeClock?.querySelector('.clock-hand--minute');
+    const secondHand = el.themeClock?.querySelector('.clock-hand--second');
 
-    /** @param {{ hour: number, minute: number }} time */
-    const renderClockHands = ({ hour, minute }) => {
-        if (!hourHand || !minuteHand) return;
-        const minuteDeg = (minute / 60) * 360;
-        const hourDeg = ((hour % 12) / 12) * 360 + (minute / 60) * 30;
+    // CSS transitions animate a rotate() value as a raw number, so a hand
+    // whose target angle wraps from ~360deg back to 0deg (every minute
+    // for the second hand, every hour for the minute hand, every 12
+    // hours for the hour hand) would otherwise spin backward almost a
+    // full turn instead of ticking forward by a fraction of a degree.
+    // Tracking an ever-increasing total angle per hand — rather than
+    // feeding CSS the raw 0-360 value every time — keeps every tick a
+    // small forward step, which is what makes the transition look right.
+    const accumulatedDeg = { hour: 0, minute: 0, second: 0 };
+
+    /**
+     * @param {'hour'|'minute'|'second'} hand
+     * @param {number} targetDeg - Raw 0-360 angle for this instant.
+     * @returns {number} An ever-increasing angle equivalent to targetDeg mod 360.
+     */
+    const nextMonotonicDeg = (hand, targetDeg) => {
+        const prevTotal = accumulatedDeg[hand];
+        const prevMod = ((prevTotal % 360) + 360) % 360;
+        let delta = targetDeg - prevMod;
+        if (delta < -0.001) delta += 360; // crossed 360 -> 0; step forward, don't spin back
+        accumulatedDeg[hand] = prevTotal + delta;
+        return accumulatedDeg[hand];
+    };
+
+    /** @param {{ hour: number, minute: number, second: number }} time */
+    const renderClockHands = ({ hour, minute, second }) => {
+        if (!hourHand || !minuteHand || !secondHand) return;
+        const secondDeg = nextMonotonicDeg('second', (second / 60) * 360);
+        const minuteDeg = nextMonotonicDeg('minute', ((minute + second / 60) / 60) * 360);
+        const hourDeg = nextMonotonicDeg('hour', (((hour % 12) + minute / 60) / 12) * 360);
         hourHand.setAttribute('transform', `rotate(${hourDeg} 12 12)`);
         minuteHand.setAttribute('transform', `rotate(${minuteDeg} 12 12)`);
+        secondHand.setAttribute('transform', `rotate(${secondDeg} 12 12)`);
     };
 
     const syncSwitchState = () => {

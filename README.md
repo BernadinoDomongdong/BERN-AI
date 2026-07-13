@@ -240,10 +240,12 @@ exactly what's in place and, just as important, what isn't:
   hours → night (dark) mode.** No dawn/dusk blending — the point is that
   glancing at the clock tells you exactly why you're in the mode you're
   in.
-- The clock face (`#themeClock`) is purely a display: an analog dial
-  whose hour/minute hands redraw every 15 seconds from the resolved
-  local time. It is a plain `<div>`, not a button — clicking it does
-  nothing, by design.
+- The clock face (`#themeClock`) is purely a display: a 12-tick analog
+  dial with hour numerals at 12/3/6/9 and three real hands (hour, minute,
+  second) that redraw every second from the resolved local time. It is a
+  plain `<div>`, not a button — clicking it does nothing, by design. The
+  theme itself is only ever re-applied when the AM/PM boundary is
+  actually crossed, not on every per-second tick.
 - The single switch beneath the clock is the *only* interactive control.
   Flipping it calls `themeController.setDarkMode()`, which sets an
   explicit, persisted theme (`localStorage`) and stops the AM/PM rule

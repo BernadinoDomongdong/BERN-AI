@@ -63,34 +63,67 @@
 }
 
 .clock-face {
-    fill: none;
+    fill: color-mix(in oklab, var(--color-surface), transparent 15%);
     stroke: var(--color-border);
-    stroke-width: 1;
+    stroke-width: 0.6;
 }
 
 .clock-tick {
     stroke: var(--color-text-muted);
-    stroke-width: 1;
+    stroke-width: 0.5;
     stroke-linecap: round;
+}
+
+.clock-tick--major {
+    stroke: var(--color-text);
+    stroke-width: 0.8;
+}
+
+.clock-numeral {
+    font-family: 'Space Mono', monospace;
+    font-size: 2.7px;
+    font-weight: 700;
+    fill: var(--color-text-muted);
+    text-anchor: middle;
+    dominant-baseline: middle;
+    user-select: none;
 }
 
 .clock-hand {
-    stroke: color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%));
     stroke-linecap: round;
     transform-origin: 12px 12px;
-    transition: color 1.2s var(--ease-standard);
+}
+
+.clock-hand--hour,
+.clock-hand--minute {
+    stroke: color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%));
+    transition: transform 1s linear, color 1.2s var(--ease-standard);
 }
 
 .clock-hand--hour {
-    stroke-width: 1.6;
+    stroke-width: 1.5;
 }
 
 .clock-hand--minute {
-    stroke-width: 1.1;
+    stroke-width: 1;
+}
+
+/* The second hand ticks in real time (see theme.js), so it's given a
+   fast, slightly overshooting transition rather than the slow color
+   shift used by the hour/minute hands — a visible per-second "tick"
+   reads as more mechanical/realistic than a perfectly smooth sweep. */
+.clock-hand--second {
+    stroke: var(--color-alert);
+    stroke-width: 0.5;
+    transition: transform 0.15s cubic-bezier(0.4, 2.4, 0.6, 1);
 }
 
 .clock-hub {
     fill: color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%));
+}
+
+.clock-hub__pin {
+    fill: var(--color-alert);
 }
 
 /* -- Dark-mode switch, the sole interactive theme control -- */

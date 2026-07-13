@@ -23,7 +23,7 @@
 
 const THEME_STORAGE_KEY = 'bernai-theme';
 const EXPLICIT_STORAGE_KEY = 'bernai-theme-explicit';
-const TICK_INTERVAL_MS = 15 * 1000; // hand sweep granularity; theme itself only changes at noon/midnight
+const TICK_INTERVAL_MS = 1000; // drives the second hand — see _tick()
 const GEOLOCATION_TIMEOUT_MS = 8000;
 const GEOLOCATION_MAX_AGE_MS = 10 * 60 * 1000;
 const TIMEZONE_LOOKUP_URL = 'https://timeapi.io/api/timezone/coordinate';
@@ -44,7 +44,7 @@ class ThemeController {
 
         /** @type {Set<(theme: string) => void>} */
         this._themeListeners = new Set();
-        /** @type {Set<(time: { hour: number, minute: number }) => void>} */
+        /** @type {Set<(time: { hour: number, minute: number, second: number }) => void>} */
         this._tickListeners = new Set();
     }
 
@@ -86,16 +86,16 @@ class ThemeController {
      * Local time-of-day, using the geolocation-resolved offset when
      * available, otherwise the device's own timezone. Always returns
      * something usable — never blocks on the geolocation prompt.
-     * @returns {{ hour: number, minute: number }}
+     * @returns {{ hour: number, minute: number, second: number }}
      */
     _resolvedLocalTime() {
         const now = new Date();
         if (this._locationUtcOffsetMin === null) {
-            return { hour: now.getHours(), minute: now.getMinutes() };
+            return { hour: now.getHours(), minute: now.getMinutes(), second: now.getSeconds() };
         }
         const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
         const local = new Date(utcMs + this._locationUtcOffsetMin * 60000);
-        return { hour: local.getHours(), minute: local.getMinutes() };
+        return { hour: local.getHours(), minute: local.getMinutes(), second: local.getSeconds() };
     }
 
     /** @returns {boolean} True during AM hours (00:00–11:59) at the resolved local time. */
@@ -103,12 +103,17 @@ class ThemeController {
         return this._resolvedLocalTime().hour < 12;
     }
 
-    /** Runs on a timer: always redraws the clock hands, and — only while
-     *  not overridden — re-evaluates the AM/PM boundary in case a tab is
-     *  left open across noon or midnight. */
+    /** Runs every second: always redraws the clock hands (including the
+     *  second hand), and — only while not overridden — re-evaluates the
+     *  AM/PM boundary. The theme itself is only ever reapplied when it
+     *  actually changes, so a 1-second tick doesn't mean 1-second-interval
+     *  DOM writes/listener notifications for the (rare) day/night flip. */
     _tick() {
         if (!this._isExplicit) {
-            this._applyTheme(this._isDaytimeNow() ? 'day' : 'night');
+            const nextTheme = this._isDaytimeNow() ? 'day' : 'night';
+            if (nextTheme !== this.currentTheme) {
+                this._applyTheme(nextTheme);
+            }
         }
         const time = this._resolvedLocalTime();
         this._tickListeners.forEach((fn) => fn(time));
