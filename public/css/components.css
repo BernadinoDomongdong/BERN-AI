@@ -2,19 +2,18 @@
    components.css — reusable UI components.
    ========================================================================= */
 
-/* -- Theme toggle: a dashboard-style day/night gauge --
-   The needle reads var(--sky-t) directly (same value driving the sky
-   gradient, star field, and sun rays), so this single control both
-   displays and sets the time-of-day state. Clicking it hands off to a
-   fixed manual override in theme.js. A small switch underneath (see
-   .theme-mode-switch) lets the person turn auto mode back on.
+/* -- Theme clock: a literal analog clock, purely decorative/informational --
+   Shows the visitor's resolved local time (see theme.js) with real
+   hour/minute hands. This element is NOT interactive — it's a plain
+   <div>, not a button, and carries no click handler. The single switch
+   underneath it (.theme-mode-switch) is the only control, and directly
+   toggles dark mode.
 
-   The needle's color itself is mixed live between a cool moonlight blue
-   and the warm accent gold as --sky-t moves — the dial doesn't just
-   point at day or night, it visibly warms up as it swings toward noon.
-   Two small halos (::before for the moon end, ::after for the sun end)
-   brighten opposite each other so the "active" side is obvious at a
-   glance even before you register the needle angle. */
+   The face still reads --sky-t (1 = day, 0 = night, always mirroring the
+   currently-applied theme — see theme.js _applyTheme) for a soft halo
+   glow that shifts between cool moonlight and warm daylight, purely as a
+   decorative echo of the hard day/night rule already shown by the theme
+   itself and by which half of the day the hands are pointing into. */
 .theme-control {
     position: fixed;
     top: calc(14px + env(safe-area-inset-top, 0px));
@@ -26,59 +25,75 @@
     gap: 8px;
 }
 
-.theme-toggle {
-    width: 76px;
+.theme-clock {
+    position: relative;
+    width: 50px;
     height: 50px;
-    padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: var(--gauge-bg);
     border: 1.5px solid var(--color-border);
-    border-radius: 18px;
+    border-radius: 50%;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 18px rgba(0, 0, 0, 0.28);
-    cursor: pointer;
     overflow: visible;
-    transition: transform 0.15s var(--ease-standard), border-color 0.15s var(--ease-standard), var(--transition-theme);
+    transition: var(--transition-theme);
 }
 
-.theme-toggle:hover {
-    transform: translateY(-2px);
-    border-color: var(--color-accent);
-}
-
-.theme-toggle::before,
-.theme-toggle::after {
+.theme-clock::before {
     content: '';
     position: absolute;
-    top: 26px;
-    width: 20px;
-    height: 20px;
+    inset: -6px;
     border-radius: 50%;
-    filter: blur(7px);
+    background: radial-gradient(
+        circle,
+        color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%)),
+        transparent 70%
+    );
+    opacity: 0.35;
+    filter: blur(8px);
     pointer-events: none;
-    transition: opacity 0.9s var(--ease-standard);
+    z-index: -1;
+    transition: background 0.9s var(--ease-standard);
 }
 
-.theme-toggle::before {
-    left: 4px;
-    background: radial-gradient(circle, var(--gauge-moon), transparent 70%);
-    opacity: calc(1 - var(--sky-t, 0.5));
+.theme-clock svg {
+    width: 100%;
+    height: 100%;
 }
 
-.theme-toggle::after {
-    right: 4px;
-    background: radial-gradient(circle, var(--gauge-sun), transparent 70%);
-    opacity: var(--sky-t, 0.5);
+.clock-face {
+    fill: none;
+    stroke: var(--color-border);
+    stroke-width: 1;
 }
 
-/* Auto mode gets a faint accent ring so it visibly reads as "live"
-   rather than a static manual choice. */
-.theme-toggle--auto {
-    border-color: color-mix(in oklab, var(--color-border), var(--color-accent) 45%);
+.clock-tick {
+    stroke: var(--color-text-muted);
+    stroke-width: 1;
+    stroke-linecap: round;
 }
 
-/* -- Auto/manual mode switch, sits under the gauge -- */
+.clock-hand {
+    stroke: color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%));
+    stroke-linecap: round;
+    transform-origin: 12px 12px;
+    transition: color 1.2s var(--ease-standard);
+}
+
+.clock-hand--hour {
+    stroke-width: 1.6;
+}
+
+.clock-hand--minute {
+    stroke-width: 1.1;
+}
+
+.clock-hub {
+    fill: color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%));
+}
+
+/* -- Dark-mode switch, the sole interactive theme control -- */
 .theme-mode-switch {
     display: inline-flex;
     cursor: pointer;
@@ -118,59 +133,8 @@
     outline-offset: 2px;
 }
 
-.gauge {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-}
-
-.gauge__track {
-    fill: none;
-    stroke: var(--color-border);
-    stroke-width: 5;
-    stroke-linecap: round;
-}
-
-.gauge__needle {
-    color: color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%));
-    stroke: currentColor;
-    stroke-width: 3.6;
-    stroke-linecap: round;
-    transform-origin: 50px 52px;
-    transform: rotate(calc(var(--sky-t, 0.5) * 180deg - 90deg));
-    transition: transform 1.2s var(--ease-standard), color 1.2s var(--ease-standard);
-    filter: drop-shadow(0 0 3px currentColor);
-}
-
-.gauge__hub {
-    fill: color-mix(in oklab, var(--gauge-moon), var(--gauge-sun) calc(var(--sky-t, 0.5) * 100%));
-}
-
-.gauge__icon--moon {
-    color: var(--gauge-moon);
-}
-
-.gauge__icon--moon path {
-    fill: currentColor;
-    stroke: none;
-    opacity: 0.95;
-}
-
-.gauge__icon--sun {
-    color: var(--gauge-sun);
-    stroke: currentColor;
-    stroke-width: 1.8;
-}
-
-.gauge__icon--sun circle {
-    fill: currentColor;
-    stroke: none;
-    opacity: 0.95;
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .gauge__needle {
+    .clock-hand {
         transition: none;
     }
 }

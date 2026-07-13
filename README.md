@@ -6,23 +6,25 @@ in a Vercel serverless function.
 
 ## What's new in this build
 
-- **A dashboard gauge as the theme control.** The old sun/moon icon-swap
-  button is now a small instrument-cluster dial: a needle sweeps across a
-  semicircular track between a moon (night) and a sun (day) icon,
-  reading the same `--sky-t` value that drives the background. It's both
-  a live readout of the time-of-day state and the click target that
-  overrides it — one piece embodying both the "dynamic weather" system
-  and the jeepney-dashboard visual world.
+- **A literal clock as the theme display, a switch as the only control.**
+  The old clickable gauge is now two separate pieces: a small analog
+  clock (`#themeClock`) that purely *shows* the visitor's resolved local
+  time — it is not a button and has no click handler — and a single
+  switch beneath it that is the *only* interactive theme control,
+  directly toggling dark mode. The clock's hands are always live; the
+  theme itself follows a simple rule (AM → day, PM → night) until the
+  switch is used, at which point that becomes an explicit, persisted
+  choice.
+- **Location-aware local time.** On load, the app resolves the visitor's
+  local time from their device's timezone immediately, then upgrades to
+  their actual geolocation-derived offset if permission is granted — so
+  someone traveling with their device still set to a home timezone still
+  sees a clock (and theme) that matches where they actually are.
 - **Full-UI internationalization.** Switching the answer language
   re-renders the *entire interface* — labels, placeholders, buttons,
   error copy, everything — not just the AI's reply. English is the
   default and the fallback for any missing string. The only text that
   never translates is the brand name, "BERN-AI".
-- **Dynamic, time-aware sky.** A `--sky-t` CSS variable (0 → night, 1 →
-  day) is continuously recalculated from the visitor's local clock
-  across dawn/dusk checkpoints, easing the background gradient, a
-  star field, and the gauge needle together. Tapping the gauge switches
-  to a fixed manual override instead (persisted across visits).
 - **Canvas-based code rain.** The ambient "hacker" background is a real
   `<canvas>` animation (`js/codeRain.js`) — falling glyphs with a fading
   trail, colored from the live theme accent. Respects
@@ -71,10 +73,18 @@ public/                Everything the browser loads directly.
     main.js                Composition root — queries the DOM once,
                             wires every module together. No business
                             logic here.
+    themeBootstrap.js       Pre-paint theme flash guard. Plain classic
+                            script (not a module) loaded directly in
+                            <head>, so it runs before CSS — kept out of
+                            index.html as an external file so the CSP's
+                            script-src needs no 'unsafe-inline'.
     i18n.js                Translation dictionary + engine. Single
                             source of truth for every UI string in
                             every language.
-    theme.js                Day/night + time-of-day sky controller.
+    theme.js                Resolves the visitor's local time (device
+                            timezone, upgraded via geolocation) and
+                            applies AM → day / PM → night, until the
+                            dark-mode switch sets an explicit override.
     codeRain.js              Canvas animation class.
     api.js                  Thin fetch wrapper for /api/models and
                             /api/chat.
@@ -87,13 +97,21 @@ public/                Everything the browser loads directly.
 api/                    Vercel serverless functions (must stay at the
                          project root, alongside public/, not inside it).
   models.js               Live list of currently-free OpenRouter models.
+                          Rate-limited per IP.
   chat.js                  Re-verifies the requested model is free,
                             builds the language-aware system prompt,
                             forwards to OpenRouter. Holds the API key.
+                            Rate-limited and origin-checked per IP.
 lib/
   freeModels.js            Shared, cached "what's free right now"
                             lookup used by both serverless functions.
-vercel.json              Explicit cache headers for static assets.
+                            De-duplicates concurrent cache-miss requests.
+  rateLimit.js              Shared in-memory rate limiter used by both
+                            serverless functions. See "Security" below
+                            for what this does and doesn't cover.
+vercel.json              Explicit cache headers for static assets, plus
+                         a site-wide security header set (CSP, HSTS,
+                         X-Frame-Options, Permissions-Policy, etc).
 .env.example              Template only — your real key never goes in
                           a committed file.
 ```
@@ -114,7 +132,84 @@ means adding one key to every locale block in `i18n.js` and one
   same live free list before forwarding the request. If a non-free or
   unknown model ID ever reached the server, it falls back to the first
   available free model instead of forwarding the request.
-- Both endpoints cache OpenRouter's model list for a few minutes.
+- Both endpoints cache OpenRouter's model list for a few minutes;
+  concurrent requests during a cache miss share a single upstream call
+  instead of each firing their own (`lib/freeModels.js`).
+
+## Security
+
+A realistic, layered posture for a small stateless app — not a claim
+that any of this makes the app immune to a determined attacker. Here's
+exactly what's in place and, just as important, what isn't:
+
+**Input validation (`api/chat.js`)**
+- Request body is type- and shape-checked before anything else runs.
+- The question is capped at 4000 characters server-side (and mirrored
+  client-side in `chatPanel.js` for instant feedback) — cheap to
+  enforce, bounds worst-case cost per request.
+- The requested answer language is stripped of control characters and
+  capped at 40 characters before it's dropped into the system prompt,
+  so it can't be used to smuggle extra instructions into the model call.
+- The requested model ID is never trusted — it's re-verified against
+  OpenRouter's live free list on every request (see above), so a
+  request can never reach a paid model.
+
+**Rate limiting (`lib/rateLimit.js`)**
+- `/api/chat`: 8 requests/minute per IP. `/api/models`: 30/minute per
+  IP (looser — it's read-only and cache-backed). Both return `429` with
+  a `Retry-After` header when exceeded.
+- **Honestly scoped**: this is an in-memory limiter local to a single
+  serverless function instance. Vercel can run multiple instances
+  concurrently across regions, so this does *not* provide true
+  distributed rate limiting — a distributed attacker can exceed these
+  limits by fanning requests across instances. It's a real deterrent
+  against casual abuse, misbehaving scripts, and single-source
+  hammering, not a guarantee. For genuine cross-instance limiting,
+  swap in a shared store — `@upstash/ratelimit` with Upstash Redis is
+  a drop-in fit for `lib/rateLimit.js`'s call shape.
+
+**Origin validation (`api/chat.js`)**
+- If you set an `ALLOWED_ORIGIN` environment variable (e.g.
+  `https://bern-ai.site`), cross-site requests carrying a different
+  `Origin` header are rejected with `403`. Requests with no `Origin`
+  header at all (some same-origin cases, non-browser tools) are let
+  through, since that header isn't reliably present for legitimate
+  traffic — so this narrows the attack surface without being a complete
+  CSRF solution on its own. Left unset, the check is skipped (fine for
+  local dev).
+
+**Security headers (`vercel.json`)**
+- Applied site-wide: `Content-Security-Policy` (strict allowlist —
+  scripts only from self + `cdn.jsdelivr.net`, no `unsafe-inline`
+  anywhere, `connect-src` limited to `self` and `timeapi.io`),
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Strict-Transport-Security`, and a `Permissions-Policy` that only
+  allows geolocation for this origin itself and blocks camera,
+  microphone, and payment APIs outright.
+- The pre-paint theme script lives in its own file
+  (`js/themeBootstrap.js`) instead of an inline `<script>` specifically
+  so the CSP's `script-src` doesn't need `'unsafe-inline'` — inline
+  scripts are one of the more common XSS escalation paths, so removing
+  the need for that directive is worth the one extra file.
+
+**Timeouts, everywhere a network call happens**
+- Client → `/api/*`: 30s, combined with the user's own "Stop" button via
+  `AbortSignal.any`.
+- `/api/chat` → OpenRouter: 30s. `lib/freeModels.js` → OpenRouter: 10s.
+  A hung upstream can't hang this app's requests indefinitely.
+
+**What this does *not* cover — and what would, if you need it**
+- **Volumetric/network-layer DDoS.** No application code can absorb a
+  true flood of traffic; that's handled by Vercel's platform-level DDoS
+  protection (always on, in front of every deployment) and, for
+  stronger guarantees, a CDN/WAF like Cloudflare or Vercel's Firewall
+  in front of the app.
+- **True distributed rate limiting** needs a shared store (see above).
+- **Bot/credential-stuffing-style abuse detection** would need a
+  challenge mechanism (e.g. Vercel's Attack Challenge Mode, a CAPTCHA,
+  or Turnstile) — not implemented here, since this app has no auth or
+  accounts to credential-stuff in the first place.
 
 ## How the language system works
 
@@ -133,20 +228,32 @@ means adding one key to every locale block in `i18n.js` and one
   strings for.
 - RTL languages (Arabic) automatically flip `dir="rtl"` on `<html>`.
 
-## How the dynamic sky works
+## How the theme clock works
 
-- `theme.js` maintains a small table of local-hour checkpoints (dawn ~6am,
-  full day ~8am–5pm, dusk ~6pm, full night ~8pm–5am) and linearly
-  interpolates a `--sky-t` value between them every 5 minutes while in
-  `auto` mode.
-- `sky.css` reads `--sky-t` in three places: to position/fade the radial
-  gradient behind everything, to fade the star field in and out, and
-  (in `components.css`) to rotate the dashboard gauge's needle — so the
-  backdrop, the stars, and the toggle control all move together as one
-  system, no weather API required.
-- Tapping the gauge switches out of `auto` into an explicit `day`/`night`
-  override (stored in `localStorage`); the needle then snaps to a fixed
-  end of the dial instead of continuing to track the clock.
+- `theme.js` resolves the visitor's local time two ways: immediately from
+  the device's own timezone (no permission needed), then upgraded to a
+  geolocation-derived offset if the visitor grants location access (via
+  a small public timezone lookup, `timeapi.io`). The device-timezone
+  reading is applied right away either way, so nothing waits on a
+  permission prompt.
+- The rule is deliberately simple: **AM local hours → day mode, PM local
+  hours → night (dark) mode.** No dawn/dusk blending — the point is that
+  glancing at the clock tells you exactly why you're in the mode you're
+  in.
+- The clock face (`#themeClock`) is purely a display: an analog dial
+  whose hour/minute hands redraw every 15 seconds from the resolved
+  local time. It is a plain `<div>`, not a button — clicking it does
+  nothing, by design.
+- The single switch beneath the clock is the *only* interactive control.
+  Flipping it calls `themeController.setDarkMode()`, which sets an
+  explicit, persisted theme (`localStorage`) and stops the AM/PM rule
+  from overriding it — same as flipping a normal light switch. The clock
+  hands keep moving either way; only the day/night decision freezes.
+- `--sky-t` (0 → night, 1 → day) always mirrors whichever theme is
+  currently applied, whether that came from the auto rule or the
+  explicit switch — `sky.css` and the clock's halo glow both read it, so
+  there's one source of truth and nothing can visually disagree with the
+  actual `data-theme` attribute.
 
 ## Deploy to GitHub + Vercel
 
@@ -157,10 +264,13 @@ means adding one key to every locale block in `i18n.js` and one
    before, treat it as burned — revoke and regenerate.)
 3. **Import the repo into Vercel** — Framework preset: "Other" (static
    site + two small serverless functions, no build step).
-4. **Add the environment variable in Vercel:**
+4. **Add the environment variables in Vercel:**
    Project → Settings → Environment Variables →
-   `OPENROUTER_API_KEY` = your new key (Production, plus
-   Preview/Development if you want local parity).
+   - `OPENROUTER_API_KEY` = your new key (Production, plus
+     Preview/Development if you want local parity). Required.
+   - `ALLOWED_ORIGIN` = your deployed URL (e.g. `https://bern-ai.site`).
+     Optional but recommended for production — see "Security" above;
+     without it, `/api/chat` skips its cross-site origin check.
 5. **Deploy.** The key lives only in Vercel's encrypted environment
    variable store — never in the repo, the deployed bundle, or
    view-source.

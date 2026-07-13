@@ -15,7 +15,7 @@ import { ChatPanel } from './chatPanel.js';
 function queryElements() {
     return {
         codeRainCanvas: document.getElementById('codeRain'),
-        themeToggle: document.getElementById('themeToggle'),
+        themeClock: document.getElementById('themeClock'),
         themeModeSwitch: document.getElementById('themeModeSwitch'),
         modelSelect: document.getElementById('modelSelect'),
         modelMeta: document.getElementById('modelMeta'),
@@ -31,30 +31,47 @@ function queryElements() {
     };
 }
 
+/**
+ * Wires the analog clock face (purely visual) and the dark-mode switch
+ * (the sole interactive control) to themeController. Subscriptions are
+ * set up *before* themeController.init() so its first internal tick —
+ * which fires synchronously at the end of init() — reaches these
+ * listeners immediately, instead of the display sitting blank/stale
+ * until the first timer interval elapses.
+ * @param {ReturnType<typeof queryElements>} el
+ */
 function initThemeToggle(el) {
-    themeController.init();
+    const hourHand = el.themeClock?.querySelector('.clock-hand--hour');
+    const minuteHand = el.themeClock?.querySelector('.clock-hand--minute');
 
-    const syncLabel = () => {
-        const key = themeController.currentTheme === 'night' ? 'theme.toDay' : 'theme.toNight';
-        el.themeToggle.setAttribute('aria-label', i18n.t(key));
-        el.themeToggle.classList.toggle('theme-toggle--auto', themeController.isAuto);
+    /** @param {{ hour: number, minute: number }} time */
+    const renderClockHands = ({ hour, minute }) => {
+        if (!hourHand || !minuteHand) return;
+        const minuteDeg = (minute / 60) * 360;
+        const hourDeg = ((hour % 12) / 12) * 360 + (minute / 60) * 30;
+        hourHand.setAttribute('transform', `rotate(${hourDeg} 12 12)`);
+        minuteHand.setAttribute('transform', `rotate(${minuteDeg} 12 12)`);
     };
 
-    syncLabel();
-    themeController.onChange(syncLabel);
-    i18n.onChange(syncLabel);
+    const syncSwitchState = () => {
+        if (!el.themeModeSwitch) return;
+        el.themeModeSwitch.checked = themeController.isDark;
+        // Reuses the existing "switch to X mode" copy: it describes what
+        // activating the control does next, same phrasing the old
+        // clickable toggle used for the same underlying action.
+        const label = i18n.t(themeController.isDark ? 'theme.toDay' : 'theme.toNight');
+        el.themeModeSwitch.setAttribute('aria-label', label);
+    };
 
-    el.themeToggle.addEventListener('click', () => {
-        themeController.toggle();
-        if (el.themeModeSwitch) el.themeModeSwitch.checked = false;
-        syncLabel();
-    });
+    themeController.onTick(renderClockHands);
+    themeController.onChange(syncSwitchState);
+    i18n.onChange(syncSwitchState);
+
+    themeController.init();
 
     if (el.themeModeSwitch) {
-        el.themeModeSwitch.checked = themeController.isAuto;
         el.themeModeSwitch.addEventListener('change', () => {
-            themeController.setAuto(el.themeModeSwitch.checked);
-            syncLabel();
+            themeController.setDarkMode(el.themeModeSwitch.checked);
         });
     }
 }

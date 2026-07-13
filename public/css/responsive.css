@@ -22,9 +22,8 @@
         padding: 16px 26px;
     }
 
-    .theme-toggle {
-        width: 64px;
+    .theme-clock {
+        width: 42px;
         height: 42px;
-        border-radius: 14px;
     }
 }
