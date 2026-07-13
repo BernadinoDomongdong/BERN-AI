@@ -67,14 +67,18 @@
 }
 
 /* Day mode's counterpart to the star field: a slow-rotating fan of
-   light rays anchored top-right, behind the gauge — as if the sun the
-   gauge's needle points to at midday is the actual light source. Fades
-   in with --sky-t, so it's the star field's mirror image rather than a
-   separate on/off effect. */
+   light rays. Anchored top-LEFT, deliberately opposite the theme clock
+   (top-right, see components.css .theme-control) — the two used to
+   share the same corner back when the theme control was a gauge with
+   its own little sun icon, so the rays reading as "coming from" it made
+   sense. Now that the control is a plain analog clock, keeping them in
+   the same corner just means a fan of rays bleeding across the clock
+   face, which reads as a rendering glitch rather than a deliberate
+   effect — hence the split. */
 .sun-rays {
     position: fixed;
     top: -20vmax;
-    right: -20vmax;
+    left: -20vmax;
     width: 70vmax;
     height: 70vmax;
     z-index: 0;
