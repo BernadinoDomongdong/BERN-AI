@@ -1,0 +1,29 @@
+/* =========================================================================
+   responsive.css — breakpoints only. Component base styles stay in
+   components.css; this file overrides for specific viewport ranges.
+   ========================================================================= */
+
+@media (min-width: 600px) {
+    .settings__grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .composer {
+        flex-direction: column;
+    }
+
+    .composer .btn {
+        width: 100%;
+    }
+
+    .signboard__plate {
+        padding: 16px 26px;
+    }
+
+    .theme-clock {
+        width: 48px;
+        height: 48px;
+    }
+}

@@ -1,0 +1,95 @@
+/* =========================================================================
+   tokens.css — design tokens only. No component rules here.
+
+   Theme model: two palettes (night / day) that share variable names, plus
+   a single scalar --sky-t (0 = full night, 1 = full day) written by
+   theme.js as the local clock moves through dawn/dusk. Components that
+   want to "breathe" with the sky (the code-rain glow, the signboard
+   shadow) read --sky-t directly instead of branching on data-theme.
+   ========================================================================= */
+
+:root,
+html[data-theme="night"] {
+    --sky-t: 0;
+
+    --color-bg: #0b0e14;
+    --color-bg-alt: #0f1420;
+    --color-surface: #131826;
+    --color-border: #232a3a;
+    --color-text: #f1eee6;
+    --color-text-muted: #8b96a8;
+
+    --color-accent: #ffc22e;
+    --color-accent-contrast: #14171c;
+    --color-accent-shadow: #b8860f;
+
+    --color-alert: #ff5a4d;
+    --color-alert-contrast: #f1eee6;
+    --color-alert-shadow: #a3291f;
+
+    --color-code-bg: rgba(0, 0, 0, 0.35);
+    --color-input-bg: #0b0e14;
+
+    --code-rain-opacity: 0.22;
+    --color-code-rain: var(--color-accent);
+    --sky-glow: rgba(255, 194, 46, 0.05);
+    --grain-opacity: 0.05;
+    --star-opacity-max: 0.7;
+    --cloud-opacity-max: 0.5;
+    --sunray-opacity-max: 0.35;
+
+    --panel-bg: linear-gradient(165deg, #171d2d 0%, #11151f 100%);
+    --gauge-bg: linear-gradient(155deg, #1a2032 0%, #0d1119 100%);
+
+    color-scheme: dark;
+}
+
+html[data-theme="day"] {
+    --color-bg: #eef3f8;
+    --color-bg-alt: #e4ecf3;
+    --color-surface: #ffffff;
+    --color-border: #d7dee6;
+    --color-text: #1b2028;
+    --color-text-muted: #5b6672;
+
+    --color-accent: #ffc22e;
+    --color-accent-contrast: #1b2028;
+    --color-accent-shadow: #c99a1f;
+
+    --color-alert: #e14336;
+    --color-alert-contrast: #ffffff;
+    --color-alert-shadow: #a3291f;
+
+    --color-code-bg: rgba(27, 32, 40, 0.06);
+    --color-input-bg: #f4f7fa;
+
+    --code-rain-opacity: 0.16;
+    --color-code-rain: #3d5a80;
+    --sky-glow: rgba(255, 194, 46, 0.16);
+    --grain-opacity: 0.028;
+    --star-opacity-max: 0.7;
+    --cloud-opacity-max: 0.5;
+    --sunray-opacity-max: 0.35;
+
+    --panel-bg: linear-gradient(165deg, #ffffff 0%, #f3f7fc 100%);
+    --gauge-bg: linear-gradient(155deg, #ffffff 0%, #eef3f8 100%);
+
+    color-scheme: light;
+}
+
+:root {
+    /* Type scale */
+    --font-display: 'Bungee', cursive;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+
+    /* Layout */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 14px;
+    --content-max-width: 640px;
+
+    /* Motion */
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-theme: background-color 0.4s var(--ease-standard), color 0.4s var(--ease-standard), border-color 0.4s var(--ease-standard);
+}
