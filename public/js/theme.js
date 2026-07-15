@@ -1,10 +1,14 @@
 /**
  * theme.js — day / night theme, synced to the visitor's real local time.
  *
- * Rule: AM local hours -> day mode, PM local hours -> night (dark) mode.
- * This is intentionally a simple, predictable rule rather than a dawn/
- * dusk gradient — the whole point is that a person can glance at the
- * clock face and know exactly which mode they're in and why.
+ * Rule: 01:00–16:59 local time -> day (light) mode, 17:00–00:59 local
+ * time -> night (dark) mode. In other words the light/dark split is
+ * anchored on two fixed clock marks, 1AM and 5PM, and each mode is
+ * simply whichever side of that pair a given moment falls on — a light
+ * "office hours + morning" block and a dark "evening + late night"
+ * block, with no in-between dawn/dusk gradient. The whole point is that
+ * a person can glance at the digital display and know exactly which
+ * mode they're in and why.
  *
  * Local time is resolved as precisely as we can get it without asking
  * for anything invasive: the device's own timezone is used immediately
@@ -13,17 +17,19 @@
  * traveling with their device still set to their home timezone still
  * sees the theme match where they actually are.
  *
- * Control model: the clock face itself is a pure, non-interactive
+ * Control model: the digital clock itself is a pure, non-interactive
  * display (see index.html — it's a plain <div>, not a button). The only
  * interactive control is a single switch, which directly toggles dark
  * mode. Flipping it is an explicit, persisted choice that overrides the
- * AM/PM auto-sync from then on — like a normal light switch, not a
+ * 1AM/5PM auto-sync from then on — like a normal light switch, not a
  * three-state auto/manual selector.
  */
 
 const THEME_STORAGE_KEY = 'bernai-theme';
 const EXPLICIT_STORAGE_KEY = 'bernai-theme-explicit';
-const TICK_INTERVAL_MS = 1000; // drives the second hand — see _tick()
+const DAY_START_HOUR = 1; // 1AM — day mode begins
+const DAY_END_HOUR = 17; // 5PM — day mode ends, night mode begins
+const TICK_INTERVAL_MS = 1000; // drives the digital readout — see _tick()
 const GEOLOCATION_TIMEOUT_MS = 8000;
 const GEOLOCATION_MAX_AGE_MS = 10 * 60 * 1000;
 const TIMEZONE_LOOKUP_URL = 'https://timeapi.io/api/timezone/coordinate';
@@ -98,16 +104,17 @@ class ThemeController {
         return { hour: local.getHours(), minute: local.getMinutes(), second: local.getSeconds() };
     }
 
-    /** @returns {boolean} True during AM hours (00:00–11:59) at the resolved local time. */
+    /** @returns {boolean} True from 1AM (inclusive) to 5PM (exclusive) at the resolved local time. */
     _isDaytimeNow() {
-        return this._resolvedLocalTime().hour < 12;
+        const { hour } = this._resolvedLocalTime();
+        return hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
     }
 
-    /** Runs every second: always redraws the clock hands (including the
-     *  second hand), and — only while not overridden — re-evaluates the
-     *  AM/PM boundary. The theme itself is only ever reapplied when it
-     *  actually changes, so a 1-second tick doesn't mean 1-second-interval
-     *  DOM writes/listener notifications for the (rare) day/night flip. */
+    /** Runs every second: always redraws the digital clock readout, and
+     *  — only while not overridden — re-evaluates the 1AM/5PM boundary.
+     *  The theme itself is only ever reapplied when it actually changes,
+     *  so a 1-second tick doesn't mean 1-second-interval DOM writes/
+     *  listener notifications for the (rare) day/night flip. */
     _tick() {
         if (!this._isExplicit) {
             const nextTheme = this._isDaytimeNow() ? 'day' : 'night';
@@ -138,8 +145,8 @@ class ThemeController {
         return () => this._themeListeners.delete(fn);
     }
 
-    /** Subscribe to clock ticks, for redrawing analog hands. Returns an
-     *  unsubscribe function. */
+    /** Subscribe to clock ticks, for redrawing the digital readout.
+     *  Returns an unsubscribe function. */
     onTick(fn) {
         this._tickListeners.add(fn);
         return () => this._tickListeners.delete(fn);
@@ -197,9 +204,9 @@ class ThemeController {
 
     /**
      * The switch is the only interactive control. Flipping it is an
-     * explicit, persisted choice — from this point on, AM/PM auto-sync
-     * no longer changes the theme (the clock face keeps ticking either
-     * way; only the day/night decision is frozen).
+     * explicit, persisted choice — from this point on, the 1AM/5PM
+     * auto-sync no longer changes the theme (the digital readout keeps
+     * ticking either way; only the day/night decision is frozen).
      * @param {boolean} isDark
      */
     setDarkMode(isDark) {

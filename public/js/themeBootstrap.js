@@ -29,10 +29,13 @@
         // through to the time-based default below.
     }
 
-    // THEME_BOOTSTRAP_RULE: AM local hours -> day, PM -> night. This is a
-    // device-clock approximation only; theme.js upgrades it to the
-    // visitor's actual location-resolved time shortly after load.
-    var isDay = new Date().getHours() < 12;
+    // THEME_BOOTSTRAP_RULE: 1AM (inclusive) - 5PM (exclusive) local hours
+    // -> day, everything else -> night. Must be kept in sync with
+    // DAY_START_HOUR / DAY_END_HOUR in theme.js. This is a device-clock
+    // approximation only; theme.js upgrades it to the visitor's actual
+    // location-resolved time shortly after load.
+    var hour = new Date().getHours();
+    var isDay = hour >= 1 && hour < 17;
     document.documentElement.setAttribute('data-theme', isDay ? 'day' : 'night');
     document.documentElement.style.setProperty('--sky-t', isDay ? '1' : '0');
 })();

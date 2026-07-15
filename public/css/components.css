@@ -2,23 +2,29 @@
    components.css — reusable UI components.
    ========================================================================= */
 
-/* -- Theme clock: a literal analog clock, purely decorative/informational --
-   Shows the visitor's resolved local time (see theme.js) with real
-   hour/minute/second hands. This element is NOT interactive — it's a
-   plain <div>, not a button, and carries no click handler. The single
-   switch underneath it (.theme-mode-switch) is the only control, and
-   directly toggles dark mode.
+/* -- Theme clock: a digital LED destination sign, purely decorative/
+   informational --
+   Shows the visitor's resolved local time (see theme.js) as a compact
+   amber LED readout, styled after the dot-matrix destination signs
+   jeepneys carry above the windshield. This element is NOT interactive
+   — it's a plain <div>, not a button, and carries no click handler. The
+   single switch underneath it (.theme-mode-switch) is the only control,
+   and directly toggles dark mode.
 
-   Hand/numeral colors are fixed, high-contrast, and theme-aware only in
-   the sense that --color-text itself already flips between a dark and
-   light value at the day/night boundary — they do NOT blend toward an
-   accent color as --sky-t moves. An earlier version mixed the hour and
-   minute hands toward the golden accent color as the day progressed;
-   in full day mode that resolved to solid gold-on-white, which read as
-   a stray blob rather than legible clock hands. A clock's only job is
-   to be readable at a glance, so decorative color motion was cut in
-   favor of a fixed, high-contrast palette — the same principle behind
-   never letting a brand accent color double as body text. */
+   This replaces an earlier analog hand-based face: three independently
+   rotated SVG hands, each redrawn every second off its own accumulated-
+   angle bookkeeping, were a recurring source of transform bugs (hands
+   drifting out of sync, transitions spinning backward across the
+   360deg->0deg wrap). A digital readout has no per-hand geometry to
+   desync — it just renders the string theme.js hands it.
+
+   The panel casing is always a fixed dark "housing" regardless of
+   theme, same as a real LED sign's plastic bezel never changes color
+   with the sky — only the glow it emits does. Digit/icon color is
+   fixed to the accent gold (the one deliberate splash of color here,
+   same principle documented in tokens.css for never letting the accent
+   double as body text elsewhere) so the display reads identically in
+   both themes. */
 .theme-control {
     position: fixed;
     top: calc(14px + env(safe-area-inset-top, 0px));
@@ -26,95 +32,119 @@
     z-index: 20;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     gap: 8px;
 }
 
 .theme-clock {
-    width: 56px;
-    height: 56px;
+    position: relative;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    background: var(--gauge-bg);
+    gap: 7px;
+    padding: 8px 12px 8px 10px;
+    background: linear-gradient(155deg, #12151d 0%, #05060a 100%);
     border: 1.5px solid var(--color-border);
-    border-radius: 50%;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 18px rgba(0, 0, 0, 0.28);
+    border-radius: var(--radius-sm);
+    clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.32);
+    overflow: hidden;
     transition: var(--transition-theme);
 }
 
-.theme-clock svg {
+/* A faint dot-matrix texture over the whole panel, echoing the physical
+   pixel grid of a real LED sign. Pure decoration, sits above the dark
+   casing but below the digits (z-index via source order only). */
+.theme-clock__grille {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 0.5px, transparent 0.5px);
+    background-size: 3px 3px;
+    opacity: 0.6;
+}
+
+.theme-clock__display {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Sun/moon glyphs are stacked and cross-faded off --sky-t directly
+   (0 = night, 1 = day) — the same scalar sky.css reads — instead of a
+   JS-driven class toggle, so the icon always agrees with whatever the
+   sky is actually doing, auto-sync or explicit switch alike. */
+.theme-clock__icon {
+    position: relative;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    color: var(--color-accent);
+}
+
+.theme-clock__icon-glyph {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    transition: opacity 0.6s var(--ease-standard);
 }
 
-.clock-face {
-    fill: color-mix(in oklab, var(--color-surface), transparent 15%);
-    stroke: var(--color-border);
-    stroke-width: 0.6;
+.theme-clock__icon-glyph--sun {
+    opacity: var(--sky-t);
 }
 
-.clock-tick {
-    stroke: var(--color-text-muted);
-    stroke-width: 0.5;
-    stroke-linecap: round;
+.theme-clock__icon-glyph--moon {
+    opacity: calc(1 - var(--sky-t));
 }
 
-.clock-tick--major {
-    stroke: var(--color-text);
-    stroke-width: 0.8;
-}
-
-.clock-numeral {
-    font-family: 'Space Mono', monospace;
-    font-size: 2.7px;
+.theme-clock__time {
+    display: inline-flex;
+    align-items: baseline;
+    font-family: var(--font-mono);
+    font-size: 15px;
     font-weight: 700;
-    fill: var(--color-text-muted);
-    text-anchor: middle;
-    dominant-baseline: middle;
-    user-select: none;
+    letter-spacing: 0.03em;
+    color: var(--color-accent);
+    text-shadow: 0 0 6px color-mix(in oklab, var(--color-accent), transparent 25%), 0 0 1px var(--color-accent);
+    font-variant-numeric: tabular-nums;
 }
 
-.clock-hand {
-    stroke-linecap: round;
-    transform-origin: 12px 12px;
+.theme-clock__digits {
+    min-width: 1.1ch;
 }
 
-.clock-hand--hour,
-.clock-hand--minute {
-    /* Fixed, high-contrast — see the block comment above for why this
-       is not sky-t-mixed the way other decorative elements are. */
-    stroke: var(--color-text);
-    transition: transform 1s linear, stroke 0.4s var(--ease-standard);
+/* The colon blinks once per second, the one classic tell of a live
+   digital clock (a static colon reads as a frozen/dead display). Kept
+   as a CSS animation rather than JS-toggled so it never depends on
+   theme.js's own tick timing. */
+.theme-clock__colon {
+    animation: theme-clock-blink 1s step-end infinite;
 }
 
-.clock-hand--hour {
-    stroke-width: 1.5;
+@keyframes theme-clock-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0.15; }
 }
 
-.clock-hand--minute {
-    stroke-width: 1;
+.theme-clock__period {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    align-self: flex-start;
+    margin-top: 1px;
 }
 
-/* The second hand ticks in real time (see theme.js), so it's given a
-   fast, slightly overshooting transition rather than a linear one — a
-   visible per-second "tick" reads as more mechanical/realistic than a
-   perfectly smooth sweep. Its accent-red color is the one deliberate
-   splash of color on the face, the same convention real clocks use so
-   the second hand reads as distinct from the hour/minute pair. */
-.clock-hand--second {
-    stroke: var(--color-alert);
-    stroke-width: 0.5;
-    transition: transform 0.15s cubic-bezier(0.4, 2.4, 0.6, 1);
-}
+@media (prefers-reduced-motion: reduce) {
+    .theme-clock__colon {
+        animation: none;
+    }
 
-.clock-hub {
-    fill: var(--color-text);
-    transition: fill 0.4s var(--ease-standard);
-}
-
-.clock-hub__pin {
-    fill: var(--color-alert);
+    .theme-clock__icon-glyph {
+        transition: none;
+    }
 }
 
 /* -- Dark-mode switch, the sole interactive theme control -- */
@@ -141,7 +171,7 @@
     background: var(--color-surface);
     border-radius: 50%;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s var(--ease-standard);
+    transition: transform 0.2s var(--ease-standard), box-shadow 0.2s var(--ease-standard);
 }
 
 .theme-mode-switch input:checked ~ .theme-mode-switch__track {
@@ -150,17 +180,12 @@
 
 .theme-mode-switch input:checked ~ .theme-mode-switch__track .theme-mode-switch__thumb {
     transform: translateX(16px);
+    box-shadow: 0 0 8px color-mix(in oklab, var(--color-accent), transparent 30%), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .theme-mode-switch input:focus-visible ~ .theme-mode-switch__track {
     outline: 2px dashed var(--color-accent);
     outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .clock-hand {
-        transition: none;
-    }
 }
 
 /* -- Signboard header -- */
@@ -178,6 +203,36 @@
     padding: 20px 42px;
     clip-path: polygon(6% 0%, 94% 0%, 100% 100%, 0% 100%);
     box-shadow: 0 10px 0 var(--color-accent-shadow), 0 18px 28px rgba(0, 0, 0, 0.4);
+}
+
+/* A row of chasing marquee bulbs along the top edge, echoing the LED
+   destination-sign language introduced by the theme clock — the kind
+   of running-light trim real jeepney signboards carry. Pure decoration
+   (aria-hidden via the parent's existing semantics), built the same way
+   .transit__track fakes its road-dash texture: a repeating gradient
+   whose position animates, no extra markup needed. */
+.signboard__plate::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: 16%;
+    right: 16%;
+    height: 2px;
+    background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.65) 0 2px, transparent 2px 9px);
+    background-repeat: repeat-x;
+    opacity: 0.55;
+    animation: signboard-chase 1.4s steps(7) infinite;
+    pointer-events: none;
+}
+
+@keyframes signboard-chase {
+    to { background-position: 9px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .signboard__plate::before {
+        animation: none;
+    }
 }
 
 .signboard__route {

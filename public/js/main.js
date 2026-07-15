@@ -32,52 +32,36 @@ function queryElements() {
 }
 
 /**
- * Wires the analog clock face (purely visual) and the dark-mode switch
- * (the sole interactive control) to themeController. Subscriptions are
- * set up *before* themeController.init() so its first internal tick —
+ * Wires the digital LED clock readout (purely visual) and the dark-mode
+ * switch (the sole interactive control) to themeController. Subscriptions
+ * are set up *before* themeController.init() so its first internal tick —
  * which fires synchronously at the end of init() — reaches these
  * listeners immediately, instead of the display sitting blank/stale
  * until the first timer interval elapses.
+ *
+ * This replaces an earlier analog hand-based face (three independently
+ * rotated SVG <line> elements, each needing its own monotonic-angle
+ * bookkeeping to avoid spinning backward across the 360deg->0deg wrap).
+ * That geometry was a recurring source of bugs; a digital readout just
+ * renders the string the clock controller hands it, nothing to desync.
  * @param {ReturnType<typeof queryElements>} el
  */
 function initThemeToggle(el) {
-    const hourHand = el.themeClock?.querySelector('.clock-hand--hour');
-    const minuteHand = el.themeClock?.querySelector('.clock-hand--minute');
-    const secondHand = el.themeClock?.querySelector('.clock-hand--second');
+    const hourDigits = el.themeClock?.querySelector('.theme-clock__digits--hour');
+    const minuteDigits = el.themeClock?.querySelector('.theme-clock__digits--minute');
+    const periodLabel = el.themeClock?.querySelector('.theme-clock__period');
 
-    // CSS transitions animate a rotate() value as a raw number, so a hand
-    // whose target angle wraps from ~360deg back to 0deg (every minute
-    // for the second hand, every hour for the minute hand, every 12
-    // hours for the hour hand) would otherwise spin backward almost a
-    // full turn instead of ticking forward by a fraction of a degree.
-    // Tracking an ever-increasing total angle per hand — rather than
-    // feeding CSS the raw 0-360 value every time — keeps every tick a
-    // small forward step, which is what makes the transition look right.
-    const accumulatedDeg = { hour: 0, minute: 0, second: 0 };
-
-    /**
-     * @param {'hour'|'minute'|'second'} hand
-     * @param {number} targetDeg - Raw 0-360 angle for this instant.
-     * @returns {number} An ever-increasing angle equivalent to targetDeg mod 360.
-     */
-    const nextMonotonicDeg = (hand, targetDeg) => {
-        const prevTotal = accumulatedDeg[hand];
-        const prevMod = ((prevTotal % 360) + 360) % 360;
-        let delta = targetDeg - prevMod;
-        if (delta < -0.001) delta += 360; // crossed 360 -> 0; step forward, don't spin back
-        accumulatedDeg[hand] = prevTotal + delta;
-        return accumulatedDeg[hand];
-    };
-
-    /** @param {{ hour: number, minute: number, second: number }} time */
-    const renderClockHands = ({ hour, minute, second }) => {
-        if (!hourHand || !minuteHand || !secondHand) return;
-        const secondDeg = nextMonotonicDeg('second', (second / 60) * 360);
-        const minuteDeg = nextMonotonicDeg('minute', ((minute + second / 60) / 60) * 360);
-        const hourDeg = nextMonotonicDeg('hour', (((hour % 12) + minute / 60) / 12) * 360);
-        hourHand.setAttribute('transform', `rotate(${hourDeg} 12 12)`);
-        minuteHand.setAttribute('transform', `rotate(${minuteDeg} 12 12)`);
-        secondHand.setAttribute('transform', `rotate(${secondDeg} 12 12)`);
+    /** Renders the readout as 12-hour HH:MM + AM/PM, matching how people
+     *  actually read a wall clock (no leading-zero hour, e.g. "9:05" not
+     *  "09:05"). The sun/moon glyph swap is pure CSS (driven by --sky-t,
+     *  see components.css) so it needs no JS here.
+     * @param {{ hour: number, minute: number, second: number }} time */
+    const renderClockDisplay = ({ hour, minute }) => {
+        if (!hourDigits || !minuteDigits || !periodLabel) return;
+        const twelveHour = hour % 12 === 0 ? 12 : hour % 12;
+        hourDigits.textContent = String(twelveHour);
+        minuteDigits.textContent = String(minute).padStart(2, '0');
+        periodLabel.textContent = hour < 12 ? 'AM' : 'PM';
     };
 
     const syncSwitchState = () => {
@@ -90,7 +74,7 @@ function initThemeToggle(el) {
         el.themeModeSwitch.setAttribute('aria-label', label);
     };
 
-    themeController.onTick(renderClockHands);
+    themeController.onTick(renderClockDisplay);
     themeController.onChange(syncSwitchState);
     i18n.onChange(syncSwitchState);
 

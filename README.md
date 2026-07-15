@@ -6,15 +6,16 @@ in a Vercel serverless function.
 
 ## What's new in this build
 
-- **A literal clock as the theme display, a switch as the only control.**
-  The old clickable gauge is now two separate pieces: a small analog
-  clock (`#themeClock`) that purely *shows* the visitor's resolved local
-  time — it is not a button and has no click handler — and a single
-  switch beneath it that is the *only* interactive theme control,
-  directly toggling dark mode. The clock's hands are always live; the
-  theme itself follows a simple rule (AM → day, PM → night) until the
-  switch is used, at which point that becomes an explicit, persisted
-  choice.
+- **A digital LED clock as the theme display, a switch as the only
+  control.** The theme control is two separate pieces: a compact
+  digital readout (`#themeClock`), styled after the amber dot-matrix
+  destination signs jeepneys carry above the windshield, that purely
+  *shows* the visitor's resolved local time — it is not a button and
+  has no click handler — and a single switch beneath it that is the
+  *only* interactive theme control, directly toggling dark mode. The
+  readout is always live; the theme itself follows a simple rule
+  (1AM–5PM → day, 5PM–1AM → night) until the switch is used, at which
+  point that becomes an explicit, persisted choice.
 - **Location-aware local time.** On load, the app resolves the visitor's
   local time from their device's timezone immediately, then upgrades to
   their actual geolocation-derived offset if permission is granted — so
@@ -236,37 +237,38 @@ exactly what's in place and, just as important, what isn't:
   a small public timezone lookup, `timeapi.io`). The device-timezone
   reading is applied right away either way, so nothing waits on a
   permission prompt.
-- The rule is deliberately simple: **AM local hours → day mode, PM local
-  hours → night (dark) mode.** No dawn/dusk blending — the point is that
-  glancing at the clock tells you exactly why you're in the mode you're
-  in.
-- The clock face (`#themeClock`) is purely a display: a 12-tick analog
-  dial with hour numerals at 12/3/6/9 and three hands (hour, minute,
-  second) that redraw every second from the resolved local time. It is a
-  plain `<div>`, not a button — clicking it does nothing, by design. The
-  theme itself is only ever re-applied when the AM/PM boundary is
+- The rule is deliberately simple: **1AM–5PM local time → day mode,
+  5PM–1AM local time → night (dark) mode.** No dawn/dusk blending — the
+  point is that glancing at the readout tells you exactly why you're in
+  the mode you're in. The two boundary hours are constants
+  (`DAY_START_HOUR`, `DAY_END_HOUR` in `theme.js`) and are mirrored
+  manually in `themeBootstrap.js` for the pre-paint guard.
+- The clock face (`#themeClock`) is purely a display: a digital LED
+  readout (12-hour `H:MM` + `AM`/`PM`, plus a sun/moon glyph that
+  cross-fades off the same `--sky-t` scalar the rest of the sky reads)
+  that redraws every second from the resolved local time. It is a plain
+  `<div>`, not a button — clicking it does nothing, by design. The
+  theme itself is only ever re-applied when the 1AM/5PM boundary is
   actually crossed, not on every per-second tick.
-- Hand and hub colors are fixed and high-contrast (`--color-text`, which
-  itself already flips between a dark and light value at the day/night
-  boundary), not blended toward the accent color as `--sky-t` moves. An
-  earlier version mixed the hour/minute hands toward the golden accent
-  color as the day progressed; in full day mode that resolved to solid
-  gold-on-white, which read as a stray blob rather than legible hands.
-  A decorative halo glow behind the face was removed for the same
-  reason. The lesson generalized into a rule: decorative color motion
-  never gets to compromise the legibility of something whose entire job
-  is to be read at a glance. Only the second hand keeps a deliberate
-  splash of color (accent red), matching the convention real clocks use.
+- An earlier build used an analog face with three independently rotated
+  SVG hands, each needing its own accumulated-angle bookkeeping to keep
+  CSS transitions from spinning backward across the 360deg→0deg wrap.
+  That geometry was a recurring source of bugs (hands drifting, jumps on
+  reload). The digital readout removes the failure mode entirely: it
+  just renders the string the clock controller hands it, nothing to
+  desync. Digit/icon color is fixed to the accent gold in both themes,
+  the same "decorative color never compromises legibility" principle
+  documented in `tokens.css`.
 - The single switch beneath the clock is the *only* interactive control.
   Flipping it calls `themeController.setDarkMode()`, which sets an
-  explicit, persisted theme (`localStorage`) and stops the AM/PM rule
-  from overriding it — same as flipping a normal light switch. The clock
-  hands keep moving either way; only the day/night decision freezes.
+  explicit, persisted theme (`localStorage`) and stops the 1AM/5PM rule
+  from overriding it — same as flipping a normal light switch. The
+  readout keeps ticking either way; only the day/night decision freezes.
 - `--sky-t` (0 → night, 1 → day) always mirrors whichever theme is
   currently applied, whether that came from the auto rule or the
-  explicit switch — `sky.css` and the clock's halo glow both read it, so
-  there's one source of truth and nothing can visually disagree with the
-  actual `data-theme` attribute.
+  explicit switch — `sky.css` and the clock's sun/moon glyph both read
+  it, so there's one source of truth and nothing can visually disagree
+  with the actual `data-theme` attribute.
 
 ## Deploy to GitHub + Vercel
 

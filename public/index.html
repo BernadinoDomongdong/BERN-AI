@@ -34,46 +34,32 @@
     <canvas id="codeRain" aria-hidden="true"></canvas>
     <div class="grain" aria-hidden="true"></div>
 
-    <!-- A literal analog clock showing the visitor's resolved local time
+    <!-- A digital LED readout showing the visitor's resolved local time
          (device timezone, upgraded to their real location if granted —
-         see theme.js). This is purely decorative/informational and NOT
-         interactive — it's a plain div, not a button, and has no click
-         handler. The switch below it is the only control, and directly
-         toggles dark mode. Rule: AM -> day, PM -> night (see theme.js). -->
+         see theme.js), styled after the amber dot-matrix destination
+         signs jeepneys carry above the windshield. Purely decorative/
+         informational and NOT interactive — it's a plain div, not a
+         button, and has no click handler. The switch below it is the
+         only control, and directly toggles dark mode. Rule: 1AM-5PM ->
+         day, 5PM-1AM -> night (see theme.js). -->
     <div class="theme-control">
         <div class="theme-clock" id="themeClock" aria-hidden="true">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle class="clock-face" cx="12" cy="12" r="10.5" />
-
-                <!-- 12 tick marks: longer/thicker at 12, 3, 6, 9 -->
-                <line class="clock-tick clock-tick--major" x1="12.00" y1="3.70" x2="12.00" y2="1.70" />
-                <line class="clock-tick" x1="16.55" y1="4.12" x2="17.15" y2="3.08" />
-                <line class="clock-tick" x1="19.88" y1="7.45" x2="20.92" y2="6.85" />
-                <line class="clock-tick clock-tick--major" x1="20.30" y1="12.00" x2="22.30" y2="12.00" />
-                <line class="clock-tick" x1="19.88" y1="16.55" x2="20.92" y2="17.15" />
-                <line class="clock-tick" x1="16.55" y1="19.88" x2="17.15" y2="20.92" />
-                <line class="clock-tick clock-tick--major" x1="12.00" y1="20.30" x2="12.00" y2="22.30" />
-                <line class="clock-tick" x1="7.45" y1="19.88" x2="6.85" y2="20.92" />
-                <line class="clock-tick" x1="4.12" y1="16.55" x2="3.08" y2="17.15" />
-                <line class="clock-tick clock-tick--major" x1="3.70" y1="12.00" x2="1.70" y2="12.00" />
-                <line class="clock-tick" x1="4.12" y1="7.45" x2="3.08" y2="6.85" />
-                <line class="clock-tick" x1="7.45" y1="4.12" x2="6.85" y2="3.08" />
-
-                <!-- Cardinal numerals -->
-                <text class="clock-numeral" x="12" y="6.4">12</text>
-                <text class="clock-numeral" x="17.6" y="12.9">3</text>
-                <text class="clock-numeral" x="12" y="19.4">6</text>
-                <text class="clock-numeral" x="6.4" y="12.9">9</text>
-
-                <!-- Drawn hour -> minute -> second so the second hand
-                     always sits visually on top, like a real clock. -->
-                <line class="clock-hand clock-hand--hour" x1="12" y1="12" x2="12" y2="7.4" />
-                <line class="clock-hand clock-hand--minute" x1="12" y1="12" x2="12" y2="4.8" />
-                <line class="clock-hand clock-hand--second" x1="12" y1="14" x2="12" y2="3" />
-
-                <circle class="clock-hub" cx="12" cy="12" r="1.1" />
-                <circle class="clock-hub__pin" cx="12" cy="12" r="0.4" />
-            </svg>
+            <div class="theme-clock__grille" aria-hidden="true"></div>
+            <div class="theme-clock__display">
+                <span class="theme-clock__icon">
+                    <svg class="theme-clock__icon-glyph theme-clock__icon-glyph--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4.3" />
+                        <path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" />
+                    </svg>
+                    <svg class="theme-clock__icon-glyph theme-clock__icon-glyph--moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M20.8 14.7A8.6 8.6 0 0 1 9.3 3.2a8.6 8.6 0 1 0 11.5 11.5Z" />
+                    </svg>
+                </span>
+                <span class="theme-clock__time">
+                    <span class="theme-clock__digits theme-clock__digits--hour">12</span><span class="theme-clock__colon" aria-hidden="true">:</span><span class="theme-clock__digits theme-clock__digits--minute">00</span>
+                </span>
+                <span class="theme-clock__period">AM</span>
+            </div>
         </div>
         <label class="theme-mode-switch">
             <input type="checkbox" id="themeModeSwitch" class="visually-hidden" aria-label="Toggle dark mode" />

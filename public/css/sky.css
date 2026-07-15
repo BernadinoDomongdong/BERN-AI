@@ -71,9 +71,9 @@
    (top-right, see components.css .theme-control) — the two used to
    share the same corner back when the theme control was a gauge with
    its own little sun icon, so the rays reading as "coming from" it made
-   sense. Now that the control is a plain analog clock, keeping them in
-   the same corner just means a fan of rays bleeding across the clock
-   face, which reads as a rendering glitch rather than a deliberate
+   sense. Now that the control is a compact digital LED readout, keeping
+   them in the same corner just means a fan of rays bleeding across the
+   display, which reads as a rendering glitch rather than a deliberate
    effect — hence the split. */
 .sun-rays {
     position: fixed;
