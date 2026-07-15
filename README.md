@@ -154,20 +154,62 @@ exactly what's in place and, just as important, what isn't:
 - The requested model ID is never trusted — it's re-verified against
   OpenRouter's live free list on every request (see above), so a
   request can never reach a paid model.
+- The request body's declared `Content-Length` is checked against a
+  16KB ceiling *before* it's parsed — this app's real payload never
+  needs anywhere near that, so an oversized one is rejected outright
+  instead of spending parse time (and rate-limit budget) on it.
 
-**Rate limiting (`lib/rateLimit.js`)**
-- `/api/chat`: 8 requests/minute per IP. `/api/models`: 30/minute per
-  IP (looser — it's read-only and cache-backed). Both return `429` with
-  a `Retry-After` header when exceeded.
-- **Honestly scoped**: this is an in-memory limiter local to a single
+**Rate limiting (`lib/rateLimit.js`), two layers**
+- **Per-IP**: `/api/chat` — 8 requests/minute per IP. `/api/models` —
+  30/minute per IP (looser — it's read-only and cache-backed). Both
+  return `429` with a `Retry-After` header when exceeded.
+- **Global**: on top of the per-IP limit, both endpoints also share a
+  single budget across *every* visitor (`GLOBAL_RATE_LIMIT_PER_MINUTE`,
+  default 60/minute). This is the specific defense against a
+  *distributed* flood — many different source IPs, each staying under
+  the per-IP limit, but collectively still capable of burning through
+  this app's OpenRouter free-tier quota. Per-IP limiting alone is blind
+  to that pattern; the global budget isn't.
+- **Honestly scoped**: both layers are in-memory, local to a single
   serverless function instance. Vercel can run multiple instances
-  concurrently across regions, so this does *not* provide true
-  distributed rate limiting — a distributed attacker can exceed these
-  limits by fanning requests across instances. It's a real deterrent
-  against casual abuse, misbehaving scripts, and single-source
-  hammering, not a guarantee. For genuine cross-instance limiting,
-  swap in a shared store — `@upstash/ratelimit` with Upstash Redis is
-  a drop-in fit for `lib/rateLimit.js`'s call shape.
+  concurrently across regions, so neither provides *true* fleet-wide
+  limiting — a sufficiently distributed attacker can still exceed both
+  by fanning requests across enough instances. This is a real deterrent
+  against casual abuse, misbehaving scripts, and single-source (or
+  moderately distributed) hammering, not a guarantee. For genuine
+  cross-instance limiting, swap in a shared store — `@upstash/ratelimit`
+  with Upstash Redis is a drop-in fit for `checkRateLimit()`'s call
+  shape (used identically for both the per-IP and global layers).
+
+**Concurrency cap (`api/chat.js`)**
+- At most 5 requests per warm instance are ever in flight to OpenRouter
+  at once (`MAX_CONCURRENT_PER_INSTANCE`). Past that, new requests get
+  an immediate `503` instead of queueing up behind slow upstream calls
+  and all timing out together. Same instance-local scoping caveat as
+  the rate limiters above.
+
+**Anti-automation token (`lib/formToken.js`)**
+- `/api/models` — which the real frontend always calls once on page
+  load, to populate the model dropdown — mints a short-lived (30
+  minute), HMAC-SHA256-signed token and returns it alongside the model
+  list. `/api/chat` requires that token on every request and rejects
+  (`403`) anything missing, expired, or with a bad signature.
+- **What this is, honestly**: not a CAPTCHA, and it makes no attempt to
+  tell a human apart from a sophisticated bot. What it actually stops
+  is the single most common abuse pattern for a small public API —
+  someone copies the `POST /api/chat` request shape from devtools and
+  loops it with curl/fetch forever, without ever calling
+  `/api/models` first. That script has no token, so it's rejected
+  before this app spends an upstream OpenRouter call on it. A scripted
+  attacker willing to also call `/api/models` first (same as the real
+  frontend does) can still get a valid token — this raises the bar for
+  the *laziest* form of abuse, it doesn't defeat a determined one.
+- Stateless by design: verified via HMAC signature + a timestamp
+  window, not a database lookup, so it works identically across every
+  warm instance without a shared store.
+- Optional but recommended: skipped entirely (fails open) if
+  `FORM_TOKEN_SECRET` isn't set in Vercel's environment variables, same
+  convention as `ALLOWED_ORIGIN` below.
 
 **Origin validation (`api/chat.js`)**
 - If you set an `ALLOWED_ORIGIN` environment variable (e.g.
@@ -193,6 +235,13 @@ exactly what's in place and, just as important, what isn't:
   so the CSP's `script-src` doesn't need `'unsafe-inline'` — inline
   scripts are one of the more common XSS escalation paths, so removing
   the need for that directive is worth the one extra file.
+- `functions.maxDuration` caps each serverless function's own runtime
+  (30s for `/api/chat`, 10s for `/api/models`), limiting how long any
+  single hung invocation can tie up compute. If your Vercel plan
+  rejects either value at deploy time, lower it to whatever your plan's
+  function-duration ceiling actually is — Vercel enforces this at
+  deploy, and it varies by plan and whether Fluid Compute is enabled,
+  so check your dashboard rather than trusting a number here.
 
 **Timeouts, everywhere a network call happens**
 - Client → `/api/*`: 30s, combined with the user's own "Stop" button via
@@ -203,14 +252,28 @@ exactly what's in place and, just as important, what isn't:
 **What this does *not* cover — and what would, if you need it**
 - **Volumetric/network-layer DDoS.** No application code can absorb a
   true flood of traffic; that's handled by Vercel's platform-level DDoS
-  protection (always on, in front of every deployment) and, for
-  stronger guarantees, a CDN/WAF like Cloudflare or Vercel's Firewall
-  in front of the app.
+  protection (always on, free, in front of every deployment regardless
+  of plan). For a targeted attack in progress, Vercel's **Attack Mode**
+  (Project → Firewall → Bot Management) is a free, one-click dashboard
+  toggle that puts a challenge page in front of *all* traffic until you
+  disable it — the fastest real response to an active flood, and
+  outside what any of this app's own code can do.
 - **True distributed rate limiting** needs a shared store (see above).
-- **Bot/credential-stuffing-style abuse detection** would need a
-  challenge mechanism (e.g. Vercel's Attack Challenge Mode, a CAPTCHA,
-  or Turnstile) — not implemented here, since this app has no auth or
-  accounts to credential-stuff in the first place.
+- **Real bot/automation detection** (headless browsers, Playwright/
+  Puppeteer-driven traffic that solves challenges and mimics real user
+  behavior) is genuinely beyond what a hand-rolled token can do — that
+  needs a purpose-built service. Two free options worth a look:
+  **Vercel BotID** (`Basic` mode is free on every plan, invisible,
+  built for exactly this "protect an AI endpoint from automated abuse"
+  case — but its documented setup examples are Next.js-flavored, so
+  confirm the integration path for a plain `@vercel/node`-style
+  function like this app's before adopting it) or **Cloudflare
+  Turnstile** (free, framework-agnostic, works in front of any host).
+  Not implemented here — the token above is a much lighter-weight
+  stand-in for the "stop the laziest scripts" slice of that problem
+  only.
+
+
 
 ## How the language system works
 
@@ -286,6 +349,14 @@ exactly what's in place and, just as important, what isn't:
    - `ALLOWED_ORIGIN` = your deployed URL (e.g. `https://bern-ai.site`).
      Optional but recommended for production — see "Security" above;
      without it, `/api/chat` skips its cross-site origin check.
+   - `FORM_TOKEN_SECRET` = any long random string (e.g.
+     `openssl rand -hex 32`). Optional but recommended — see
+     "Security" above; without it, the anti-automation token check is
+     skipped entirely (fails open).
+   - `GLOBAL_RATE_LIMIT_PER_MINUTE` = a number, e.g. `60`. Optional —
+     defaults to 60 if unset. Tune this to whatever your actual
+     OpenRouter account's free-tier rate limit is; see "Security"
+     above for why this exists alongside the per-IP limit.
 5. **Deploy.** The key lives only in Vercel's encrypted environment
    variable store — never in the repo, the deployed bundle, or
    view-source.

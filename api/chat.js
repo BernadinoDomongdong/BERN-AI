@@ -11,12 +11,15 @@
 
 const { fetchFreeModels } = require('../lib/freeModels');
 const { checkRateLimit, clientKeyFromRequest, ensureSweepScheduled } = require('../lib/rateLimit');
+const { verifyToken } = require('../lib/formToken');
 
 /**
  * @typedef {Object} ChatRequestBody
  * @property {string} message - The user's question.
  * @property {string} [model] - Requested OpenRouter model id.
  * @property {string} [language] - Desired reply language, human-readable.
+ * @property {string} [formToken] - See lib/formToken.js.
+ * @property {number} [formIssuedAt] - See lib/formToken.js.
  */
 
 const DEFAULT_LANGUAGE = 'English';
@@ -27,11 +30,38 @@ const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const APP_REFERER = 'https://www.bernarddev.com';
 const APP_TITLE = 'BERN-AI';
 
+// A JSON body of { message (<=4000 chars), model, language, formToken,
+// formIssuedAt } comfortably fits in a few KB even at max field lengths;
+// this is deliberately far tighter than Vercel's own ~4.5MB platform
+// limit, so an oversized payload is rejected before it's even handed to
+// the JSON parser, instead of after Vercel has already buffered it.
+const MAX_BODY_BYTES = 16 * 1024;
+
 // This endpoint costs real upstream calls (and, indirectly, OpenRouter's
 // free-tier goodwill) per request, so it gets the stricter of the two
 // API rate limits. See lib/rateLimit.js for the scope/limits of this
 // protection — it's a real deterrent, not a DDoS-proof guarantee.
 const RATE_LIMIT = { windowMs: 60 * 1000, max: 8 };
+
+// A second, coarser budget shared across *every* visitor, not just one
+// IP — see the comment on checkRateLimit() in lib/rateLimit.js for why
+// this matters against a distributed (many-IP) flood. Tune this to
+// whatever OpenRouter's free tier actually allows your account per
+// minute; the default here is a conservative placeholder, not a
+// measured value. Configure via GLOBAL_RATE_LIMIT_PER_MINUTE.
+const GLOBAL_RATE_LIMIT_KEY = '__global__';
+const GLOBAL_RATE_LIMIT = {
+  windowMs: 60 * 1000,
+  max: Number(process.env.GLOBAL_RATE_LIMIT_PER_MINUTE) || 60,
+};
+
+// Caps how many /api/chat invocations this *specific warm instance* will
+// have in flight to OpenRouter at once, shedding load with a fast 503
+// instead of letting requests pile up and all time out together. Same
+// honest caveat as the rate limiters: scoped to one instance, not the
+// whole fleet — see lib/rateLimit.js.
+const MAX_CONCURRENT_PER_INSTANCE = 5;
+let inFlightCount = 0;
 
 // Set ALLOWED_ORIGIN in Vercel's environment variables (e.g.
 // "https://bern-ai.site") to reject cross-site requests to this
@@ -58,11 +88,11 @@ class RequestError extends Error {
 /**
  * Validates and normalizes the incoming request body.
  * @param {unknown} body
- * @returns {{ message: string, model: string|undefined, language: string|undefined }}
+ * @returns {{ message: string, model: string|undefined, language: string|undefined, formToken: string|undefined, formIssuedAt: number|undefined }}
  * @throws {RequestError} If required fields are missing or malformed.
  */
 function parseRequestBody(body) {
-  const { message, model, language } = body || {};
+  const { message, model, language, formToken, formIssuedAt } = body || {};
 
   if (typeof message !== 'string' || message.trim().length === 0) {
     throw new RequestError('Missing "message" in request body', 400);
@@ -77,7 +107,21 @@ function parseRequestBody(body) {
     throw new RequestError('"language" must be a string if provided', 400);
   }
 
-  return { message, model, language };
+  return { message, model, language, formToken, formIssuedAt };
+}
+
+/**
+ * Rejects a request whose declared Content-Length exceeds MAX_BODY_BYTES,
+ * before any body parsing happens. Defense in depth on top of Vercel's
+ * own platform-level payload limit — this app's actual payload shape
+ * never needs anywhere near that much, so failing fast on an oversized
+ * one avoids spending parse time (and rate-limit budget) on it.
+ * @param {import('http').IncomingMessage} req
+ * @returns {boolean}
+ */
+function isBodyTooLarge(req) {
+  const declared = Number(req.headers['content-length']);
+  return Number.isFinite(declared) && declared > MAX_BODY_BYTES;
 }
 
 /**
@@ -203,12 +247,20 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  // Cheapest checks first, before spending any rate-limit budget on a
+  // request that was never going anywhere: declared size, then origin.
+  if (isBodyTooLarge(req)) {
+    res.status(413).json({ error: 'Request body too large' });
+    return;
+  }
+
   if (!isOriginAllowed(req)) {
     res.status(403).json({ error: 'Origin not allowed' });
     return;
   }
 
-  ensureSweepScheduled(RATE_LIMIT.windowMs);
+  ensureSweepScheduled(Math.max(RATE_LIMIT.windowMs, GLOBAL_RATE_LIMIT.windowMs));
+
   const clientKey = clientKeyFromRequest(req);
   const rate = checkRateLimit(clientKey, RATE_LIMIT);
   res.setHeader('X-RateLimit-Limit', String(RATE_LIMIT.max));
@@ -219,8 +271,31 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  // Second, coarser check: the shared budget across every visitor to
+  // this instance. Checked *after* the per-IP limit (cheaper to reject
+  // a single hammering IP without touching the shared counter at all),
+  // but still before any real work happens.
+  const globalRate = checkRateLimit(GLOBAL_RATE_LIMIT_KEY, GLOBAL_RATE_LIMIT);
+  if (!globalRate.allowed) {
+    res.setHeader('Retry-After', String(globalRate.retryAfterSeconds));
+    res.status(429).json({ error: 'This app is getting more traffic than its free API quota allows right now — please try again shortly.' });
+    return;
+  }
+
+  if (inFlightCount >= MAX_CONCURRENT_PER_INSTANCE) {
+    res.status(503).json({ error: 'Server is busy — please try again in a moment.' });
+    return;
+  }
+
   try {
-    const { message, model, language } = parseRequestBody(req.body);
+    const { message, model, language, formToken, formIssuedAt } = parseRequestBody(req.body);
+
+    if (!verifyToken(formToken, formIssuedAt)) {
+      // Deliberately vague: doesn't distinguish "missing" from "expired"
+      // from "invalid" in the response, so a script probing this
+      // endpoint learns nothing about which case it hit.
+      throw new RequestError('Please refresh the page and try again.', 403);
+    }
 
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
@@ -233,7 +308,13 @@ module.exports = async function handler(req, res) {
     const resolvedModel = await resolveFreeModel(model);
     const systemPrompt = buildSystemPrompt(sanitizeLanguage(language));
 
-    const data = await forwardToOpenRouter({ apiKey, model: resolvedModel, systemPrompt, message });
+    inFlightCount += 1;
+    let data;
+    try {
+      data = await forwardToOpenRouter({ apiKey, model: resolvedModel, systemPrompt, message });
+    } finally {
+      inFlightCount -= 1;
+    }
     res.status(200).json(data);
   } catch (err) {
     if (err instanceof RequestError) {

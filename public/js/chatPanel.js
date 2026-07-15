@@ -154,6 +154,8 @@ export class ChatPanel {
                 message: validation.message,
                 model: this.modelSelector.selectedId,
                 language: this.languageSelector.promptLanguage,
+                formToken: this.modelSelector.formToken,
+                formIssuedAt: this.modelSelector.formIssuedAt,
                 signal: this.activeController.signal,
             });
 

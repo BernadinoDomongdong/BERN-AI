@@ -15,10 +15,21 @@
  */
 
 /**
+ * @typedef {Object} FetchModelsResult
+ * @property {FreeModel[]} models
+ * @property {string} [formToken] - Present only if the server has
+ *   FORM_TOKEN_SECRET configured; see lib/formToken.js. Must be echoed
+ *   back on sendChatMessage().
+ * @property {number} [formIssuedAt] - Pairs with formToken.
+ */
+
+/**
  * @typedef {Object} SendChatMessageParams
  * @property {string} message
  * @property {string} model
  * @property {string} language
+ * @property {string} [formToken] - From a prior fetchModels() call.
+ * @property {number} [formIssuedAt] - From a prior fetchModels() call.
  * @property {AbortSignal} [signal]
  */
 
@@ -68,8 +79,10 @@ async function parseJsonSafely(response) {
 }
 
 /**
- * GET /api/models — the live list of currently-free OpenRouter models.
- * @returns {Promise<FreeModel[]>}
+ * GET /api/models — the live list of currently-free OpenRouter models,
+ * plus a short-lived anti-automation token (see lib/formToken.js) that
+ * must be echoed back on the next sendChatMessage() call.
+ * @returns {Promise<FetchModelsResult>}
  * @throws {ApiError}
  */
 async function fetchModels() {
@@ -84,7 +97,11 @@ async function fetchModels() {
     if (!response.ok) {
         throw new ApiError(String(data.error || `HTTP ${response.status}`), response.status);
     }
-    return Array.isArray(data.models) ? data.models : [];
+    return {
+        models: Array.isArray(data.models) ? data.models : [],
+        formToken: typeof data.formToken === 'string' ? data.formToken : undefined,
+        formIssuedAt: typeof data.formIssuedAt === 'number' ? data.formIssuedAt : undefined,
+    };
 }
 
 /**
@@ -93,13 +110,13 @@ async function fetchModels() {
  * @returns {Promise<unknown>} OpenRouter's chat completion response.
  * @throws {ApiError}
  */
-async function sendChatMessage({ message, model, language, signal }) {
+async function sendChatMessage({ message, model, language, formToken, formIssuedAt, signal }) {
     let response;
     try {
         response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, model, language }),
+            body: JSON.stringify({ message, model, language, formToken, formIssuedAt }),
             signal: withTimeout(signal),
         });
     } catch (err) {

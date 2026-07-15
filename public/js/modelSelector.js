@@ -21,6 +21,11 @@ export class ModelSelector {
         this.models = [];
         this.status = 'loading'; // 'loading' | 'ready' | 'empty' | 'error'
         this.errorMessage = '';
+        // See lib/formToken.js — undefined when the server hasn't
+        // configured FORM_TOKEN_SECRET, in which case chatPanel.js just
+        // sends undefined and the server-side check fails open too.
+        this.formToken = undefined;
+        this.formIssuedAt = undefined;
 
         this.select.addEventListener('change', () => this._renderCapacity());
     }
@@ -38,7 +43,10 @@ export class ModelSelector {
         this._render();
 
         try {
-            this.models = await fetchModels();
+            const result = await fetchModels();
+            this.models = result.models;
+            this.formToken = result.formToken;
+            this.formIssuedAt = result.formIssuedAt;
             this.status = this.models.length > 0 ? 'ready' : 'empty';
         } catch (err) {
             this.status = 'error';
